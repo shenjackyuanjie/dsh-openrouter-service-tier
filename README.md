@@ -2,7 +2,9 @@
 
 为 DeepSeek Harness（DSH）提供独立 OpenRouter 服务档位路由，以及插件管理页面中的中文 tier 选择器。
 
-**当前版本 `0.2.1`。** 不修改 DSH、不启动代理、不复制协议适配器。默认 bundle 注册 `openrouter-tier`，请求 `flex`；模型来自 pi-ai 的 OpenRouter Chat Completions 目录，**不固定 Luna、不统一强设 high thinking**。原 `openrouter` 路由不受影响，使用本插件需要选择独立路由。
+**当前版本 `0.2.2`。** 不修改 DSH、不启动代理、不复制协议适配器。默认 bundle 注册 `openrouter-tier`，请求 `flex`；模型来自 pi-ai 的 OpenRouter Chat Completions 目录，**不固定 Luna、不统一强设 high thinking**。原 `openrouter` 路由不受影响，使用本插件需要选择独立路由。
+
+档位可以在三个入口修改，三者写入同一处宿主配置：插件管理页、`/openrouter-tier` 命令、`openrouter_service_tier` Agent 工具。
 
 ## 插件管理页面
 
@@ -22,13 +24,26 @@
 ### 保存和恢复默认
 
 - 下拉选择只改变本页草稿，**点击「保存」才会持久化**。离开页面不保存则丢弃草稿。
-- 保存只写 `serviceTier`，不改 key、模型列表、thinking 或其他连接配置。
+- 保存只写档位字段，不改 key、模型列表、thinking 或其他连接配置。
 - 修改影响**当前 profile 所有会话的后续请求**，不是单个会话偏好。正在进行或已经 prepare 的请求保留原档位。
 - 「不发送 tier 参数」保存为显式 `serviceTier: null`，覆盖 bundle 的 flex 默认值。
-- 「恢复默认」清除该字段的用户覆盖，重新继承 bundle/上层配置；默认 bundle 为 flex，**不等同于不发送参数**。
+- 「恢复默认」清除全局档位的用户覆盖，重新继承 bundle/上层配置；默认 bundle 为 flex，**不等同于不发送参数**。该按钮不影响按模型覆盖。
 - 保存期间禁止重复操作；并发修改会按读取时的 revision 检查，不静默覆盖他人配置。拒绝或网络失败显示中文错误，保留草稿供重试，不显示虚假成功。
 - 配置不可用、只读连接或浏览器 memory 模式不能写入 Host，页面会明确提示。
 - tier 是请求选择，不是实际计费保证。请以 OpenRouter 日志中的实际档位与费用为准。
+
+### 按模型覆盖
+
+页面下半部分是可选覆盖表，用于“整体便宜、个别模型要可靠”这类组合。
+
+- 每行是 `模型 → 档位`，优先于全局档位；未列出的模型继续使用全局档位。
+- 覆盖行可以选「不发送 tier 参数」，此时该模型即使有全局档位也不携带 `service_tier`。
+- 模型 id 必须是本插件 `models` 列表中的 OpenRouter 模型（形如 `vendor/model`）。Host 会拒绝其他值，因此写不进永不生效的覆盖。
+- 覆盖表为空时保存为字段清除，而不是空数组。
+- 覆盖与全局档位在同一次写入中提交，共用读取时的 revision。
+- 模型清单不投影到浏览器，所以模型 id 由输入框填写；拼写错误会得到中文错误提示，而不是静默忽略。
+
+档位解析优先级：`该模型的覆盖 > 全局档位 > 不发送`。
 
 第一版未增加会话级按钮、原 Models 页 tier 控件、实际 tier/费用展示或原 provider 配置继承。
 
@@ -45,7 +60,7 @@ DSH llm 服务
 
 消息转换、thinking、工具调用、流式解析、replay、取消、超时和附件转换由现有 `@deepseek-ai/dsh-llm-pi-ai` 与 pi-ai 负责。插件仅装配公开 profile、按请求解析凭据、包装 provider，并用 Cordis effect 注册与卸载贡献。
 
-`stream`、`streamSimple` 两个入口都包装。原 `onPayload` 先执行，可异步、原地修改或返回替换对象；最后注入插件拥有的 tier。未设置 tier 或显式设置为 null 时，不添加 hook，不强制 default。
+`stream`、`streamSimple` 两个入口都包装。原 `onPayload` 先执行，可异步、原地修改或返回替换对象；最后按该请求的模型注入插件拥有的 tier。解析结果为空（未设置、或该模型选「不发送」）时不添加 hook，不强制 default；只有全局档位和覆盖都为空时才完全不包装请求。
 
 ## 构建与安装
 
@@ -117,13 +132,14 @@ npm pack --ignore-scripts --pack-destination .cache
 | `provider` | `openrouter-tier` | 小写连字符独立路由；禁止 `openrouter`，重复路由由 LLM 拒绝 |
 | `apiKeyEnv` | `OPENROUTER_API_KEY` | credentials 服务的 POSIX identifier 引用，不可填实际密钥 |
 | `serviceTier` | 不设置 | 可热更新；支持上述五个协议值，null 表示不发送。默认 bundle 显式为 flex |
+| `modelServiceTiers` | 空表 | 可热更新的按模型覆盖数组，元素为 `{ model, tier }`；`tier` 取五个协议值或 `omit`。模型必须在 `models` 内且不得重复 |
 | `models` | 当前固定 pi-ai OpenRouter 目录中的所有 Chat Completions 模型 | 可用非空、不重复的显式 ID 列表缩小范围。未知或非 Chat Completions 模型拒绝，不虚构能力 |
 | `reasoning` | 不设置 | `off/minimal/low/medium/high/xhigh/max`，由模型能力约束；优先使用请求中的档位 |
 | `baseURL` | 模型目录中的 OpenRouter URL | 可选可信 HTTP(S) API 根地址，禁止 userinfo、查询参数与片段。自定义地址会收到引用的凭据 |
 | `timeoutMs` | SDK 默认 | 非负整数，请求级 SDK 超时；0 的语义由上游决定 |
 | `streamIdleTimeoutMs` | `300000` | 有限正数，最大 `2147483647`，等待下一个事件的 idle 上限 |
 
-只有 `serviceTier` 是 UI 可编辑 volatile 字段；连接、模型与其他配置仍通过普通配置管理。默认模型列表从 provider 目录计算，不是手写 ID 清单。Luna 只出现在测试与历史真实验证记录中。
+`serviceTier` 与 `modelServiceTiers` 是 UI 可编辑的 volatile 字段；连接、模型与其他配置仍通过普通配置管理。默认模型列表从 provider 目录计算，不是手写 ID 清单。Luna 只出现在测试与历史真实验证记录中。
 
 ### 凭据与生命周期
 
@@ -133,16 +149,38 @@ npm pack --ignore-scripts --pack-destination .cache
 - tier 热更新保持同一 adapter，按下一次操作构造新 profile/provider 快照，旧请求继续使用旧快照。
 - 普通字段变化由 Loader 重建；字段校验在卸载前拒绝非法候选。Loader raw entry 可能保留失败候选，应修正后重新保存，不承诺原始配置自动回滚。
 - 仅 tier 更新不更换 adapter，可保留同 adapter replay 语义；普通字段重建后的跨实例历史可能由 Harness 降级为 provider-neutral 内容。
-- 停用或卸载释放路由、Client slot 与配置工具，不主动取消已经准备的请求；调用者通过 signal 取消。
+- 停用或卸载释放路由、Client slot、配置工具与 `/openrouter-tier` 命令，不主动取消已经准备的请求；调用者通过 signal 取消。
 
-## Agent 配置工具
+## Agent 配置工具与命令
 
-宿主同时提供 `settings` 和 `tools` 时，注册 `openrouter_service_tier`。它和 UI 都调用 **宿主 `settings.mutate`**，不另建配置文件或持久化实现。
+宿主同时提供 `settings` 和 `tools` 时注册 `openrouter_service_tier`；同时提供 `settings` 和 `commands` 时注册 `/openrouter-tier`。两者和 UI 都调用 **宿主 `settings.mutate`**，不另建配置文件或持久化实现。
 
-- `get`：读取当前 tier 与 revision，不读取 key、不发送模型请求。
-- `set`：指定 tier 和最近读取的 `expectedRevision`；`omit` 表示不发送参数。修改影响当前 profile 所有会话，优先/极速档位可能增加费用。
-- `reset`：提供 `expectedRevision`，恢复继承默认值。
-- 没有这些可选服务时，核心路由仍可运行，不额外装配业务依赖。
+`openrouter_service_tier` 工具：
+
+- `get`：读取全局档位、按模型覆盖与 revision，不读取 key、不发送模型请求。
+- `set`：指定档位和最近读取的 `expectedRevision`；`omit` 表示不发送参数。带 `model` 时只改该模型的覆盖。
+- `reset`：提供 `expectedRevision`；带 `model` 时只清除该模型的覆盖，否则清除全局档位。
+
+`/openrouter-tier` 命令：
+
+```text
+/openrouter-tier                    查看当前全局档位与按模型覆盖
+/openrouter-tier flex               设置全局档位
+/openrouter-tier reset              清除全局档位，改为继承
+/openrouter-tier <模型> flex         只为该模型设置档位
+/openrouter-tier <模型> reset        删除该模型的覆盖
+```
+
+命令名带路由前缀。DSH 的命令名在全局层唯一，重名注册会让后来者直接抛错（`command "..." is already registered`），而不是覆盖或合并，因此两个同类插件不可能共用 `/service-tier`。厂商中立的 `service-tier` 留给通用档位插件，本插件用带路由前缀的名字，同时安装时两者各自可用。
+
+没有这些可选服务时，核心路由仍可运行，不额外装配业务依赖。
+
+### 与其他同类插件的边界
+
+- 本插件只注册独立路由 `openrouter-tier`，从不接管或改写原 `openrouter` 路由，因此不会与聚合提供商列表、实时模型目录或原路由类插件争夺同一路由。
+- 档位只在请求内按模型注入 `service_tier`，不改模型、不改 thinking 档位。若另有插件为同一模型注入 reasoning 档位，两者互不覆盖。
+- 路由名重复由 LLM 直接拒绝（显式失败，不静默替换），配置行 id、Client slot key 与 settings 命名空间均为插件独有。
+- `dsh-openrouter-live` 的 `extraBody` 也能发送 `service_tier`，但它属于该插件自己的路由；两者并存时各管一条路由。
 
 ## 验证
 
@@ -157,10 +195,10 @@ npm pack --dry-run --ignore-scripts
 
 | DSH 组件版本 | Cordis | Schemastery | Loader | pi-ai | 离线测试 |
 | --- | --- | --- | --- | --- | --- |
-| `0.2.0-rc.2` | `4.0.4` | `3.18.4` | `1.0.5` | `0.87.1` | 24/24 通过 |
-| `0.2.1-alpha.1` | `4.0.5-alpha.1` | `3.18.5-alpha.1` | `1.0.6-alpha.1` | `0.87.1` | 24/24 通过 |
+| `0.2.0-rc.2` | `4.0.4` | `3.18.4` | `1.0.5` | `0.87.1` | 32/32 通过 |
+| `0.2.1-alpha.1` | `4.0.5-alpha.1` | `3.18.5-alpha.1` | `1.0.6-alpha.1` | `0.87.1` | 32/32 通过 |
 
-覆盖真实 Loader/LLM/adapter 及本地假 HTTP/SSE 的 flex + high、thinking/文本/usage、工具与 replay；凭据失败、配置错误、取消/超时、冲突和卸载；默认目录不固定模型；真实 Settings 的 tier 热更新、revision 冲突、旧请求快照与工具清理。
+覆盖真实 Loader/LLM/adapter 及本地假 HTTP/SSE 的 flex + high、thinking/文本/usage、工具与 replay；凭据失败、配置错误、取消/超时、冲突和卸载；默认目录不固定模型；真实 Settings 的全局档位热更新与按模型覆盖、revision 冲突、旧请求快照、工具/命令清理；上游 5xx 与 429 失败落在可重试错误码上；命令名不得占用 `service-tier`。
 
 UI 行为测试使用真实 React，验证中文说明、主题 token、草稿、保存/重置、null 省略语义、拒绝/网络错误、只读/memory、并发版本与重复提交。持久化边界使用独立测试文件的 configEditor 替身，**不是用户 profile 的端到端 YAML 写入测试**。测试不访问真实 API 或凭据。`react-test-renderer` 会报告弃用警告，但只在开发测试中使用，不打包进浏览器。
 

@@ -25,6 +25,12 @@ window.__ModuleLoader__.load({
       loading: '正在读取插件配置…', unavailable: '当前配置不可用，请确认插件已启用。',
       readonly: '当前页面不能写入 Host 配置；请在可写的本机连接中修改。',
       changed: '配置已被其他操作更新；保存会进行版本检查，不会静默覆盖。',
+      overridesTitle: '按模型覆盖（可选）',
+      overridesIntro: '只对该模型生效，优先于上面的全局档位。模型 id 必须在本插件已配置的 models 列表中，否则 Host 会拒绝写入。',
+      overridesEmpty: '暂无覆盖，所有模型都使用全局档位。',
+      overrideModel: '模型 id', overridePlaceholder: '例如 vendor/model',
+      overrideAdd: '添加覆盖', overrideRemove: '删除', overrideTarget: '档位',
+      overrideInvalid: '模型 id 不能为空。',
     };
     const en = {
       title: 'Request service tier', summary: 'Select the OpenRouter request service tier',
@@ -44,6 +50,12 @@ window.__ModuleLoader__.load({
       loading: 'Loading plugin configuration…', unavailable: 'Configuration is unavailable. Confirm the plugin is enabled.',
       readonly: 'This page cannot write Host configuration. Use a writable local connection.',
       changed: 'Another operation updated the configuration. Save will check the revision rather than overwrite silently.',
+      overridesTitle: 'Per-model overrides (optional)',
+      overridesIntro: 'Applies to that model only and takes precedence over the global tier above. The model id must be in this plugin’s configured models list, otherwise the Host refuses the write.',
+      overridesEmpty: 'No overrides; every model uses the global tier.',
+      overrideModel: 'Model id', overridePlaceholder: 'e.g. vendor/model',
+      overrideAdd: 'Add override', overrideRemove: 'Remove', overrideTarget: 'Tier',
+      overrideInvalid: 'Model id must not be empty.',
     };
     const css = `
       .ort-tier-form{display:flex;flex-direction:column;gap:16px;max-width:640px;color:var(--dsw-alias-label-primary)}
@@ -51,6 +63,7 @@ window.__ModuleLoader__.load({
       .ort-tier-help{color:var(--dsw-alias-label-secondary)}
       .ort-tier-field{display:flex;flex-direction:column;gap:6px;padding:12px 0}
       .ort-tier-field label{font-size:13px;font-weight:500;line-height:1.5}
+      .ort-tier-field-label{font-size:13px;font-weight:600;line-height:1.5}
       .ort-tier-select{box-sizing:border-box;width:100%;min-height:36px;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}
       .ort-tier-select option{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
       .ort-tier-actions{display:flex;flex-wrap:wrap;gap:8px}
@@ -61,22 +74,54 @@ window.__ModuleLoader__.load({
       .ort-tier-warning{color:var(--dsw-alias-state-warn-primary)}
       .ort-tier-error{color:var(--dsw-alias-state-error-primary)}
       .ort-tier-success{color:var(--dsw-alias-state-success-primary)}
+      .ort-tier-overrides{display:flex;flex-direction:column;gap:8px;padding-top:4px;border-top:1px solid var(--dsw-alias-border-l2)}
+      .ort-tier-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+      .ort-tier-row code{font-size:12px;overflow-wrap:anywhere}
+      .ort-tier-row .ort-tier-select{width:auto;min-width:180px;flex:0 1 220px}
+      .ort-tier-input{box-sizing:border-box;min-height:36px;padding:6px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;flex:1 1 200px}
+      .ort-tier-input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+      .ort-tier-input:disabled{opacity:.5;cursor:not-allowed}
+      .ort-tier-list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
     `;
+
+    /** Host 返回值一律按 `模型 → 档位` 数组回读，非法项忽略而不是渲染出坏行。 */
+    function normalizeOverrides(raw) {
+      if (!Array.isArray(raw)) return [];
+      const seen = new Set();
+      const list = [];
+      for (const item of raw) {
+        if (!item || typeof item !== 'object') continue;
+        const model = typeof item.model === 'string' ? item.model : '';
+        if (model.length === 0 || seen.has(model)) continue;
+        seen.add(model);
+        list.push({ model, tier: tiers.includes(item.tier) ? item.tier : 'omit' });
+      }
+      return list;
+    }
 
     function TierForm({ form, t }) {
       const state = form?.state;
-      const accepted = state?.value?.serviceTier ?? 'omit';
+      const acceptedTier = state?.value?.serviceTier ?? 'omit';
+      const acceptedOverrides = normalizeOverrides(state?.value?.modelServiceTiers);
       const [draft, setDraft] = React.useState(null);
+      const [newModel, setNewModel] = React.useState('');
       const [busy, setBusy] = React.useState(false);
       const [notice, setNotice] = React.useState(null);
       const inFlight = React.useRef(false);
       const mounted = React.useRef(true);
       const id = React.useId();
       React.useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-      const selected = draft?.tier ?? accepted;
+      const selected = draft?.tier ?? acceptedTier;
+      const overrides = draft?.overrides ?? acceptedOverrides;
       const writable = state?.status === 'ready' && state.writable && state.mode === 'host' && Number.isSafeInteger(state.revision);
       const overridden = !!state?.user && Object.prototype.hasOwnProperty.call(state.user, 'serviceTier');
       const conflict = draft !== null && draft.revision !== state?.revision;
+
+      /** 任一字段改动都保留读取时的 revision，保存时据此做版本 fence。 */
+      function update(patch) {
+        setNotice(null);
+        setDraft({ tier: selected, overrides, revision: draft?.revision ?? state.revision, ...patch });
+      }
 
       async function persist(reset) {
         if (!writable || inFlight.current || (!reset && draft === null)) return;
@@ -84,8 +129,13 @@ window.__ModuleLoader__.load({
         setBusy(true);
         setNotice(null);
         const revision = reset ? state.revision : draft.revision;
-        const ops = reset ? [{ op: 'unset', path: ['serviceTier'] }]
-          : [{ op: 'set', path: ['serviceTier'], value: selected === 'omit' ? null : selected }];
+        // 覆盖表为空的语义是“没有覆盖”，因此清除而不是写入空数组。
+        const ops = reset ? [{ op: 'unset', path: ['serviceTier'] }] : [
+          { op: 'set', path: ['serviceTier'], value: selected === 'omit' ? null : selected },
+          overrides.length === 0
+            ? { op: 'unset', path: ['modelServiceTiers'] }
+            : { op: 'set', path: ['modelServiceTiers'], value: overrides },
+        ];
         try {
           const ok = await form.mutate(ops, revision);
           if (mounted.current) {
@@ -100,6 +150,13 @@ window.__ModuleLoader__.load({
         }
       }
 
+      function addOverride() {
+        const model = newModel.trim();
+        if (model.length === 0) { setNotice({ kind: 'error', text: t('overrideInvalid') }); return; }
+        update({ overrides: [...overrides.filter((entry) => entry.model !== model), { model, tier: 'flex' }] });
+        setNewModel('');
+      }
+
       if (!form || state?.status === 'unavailable') return h('p', { role: 'status' }, t('unavailable'));
       if (state?.status !== 'ready') return h('p', { role: 'status' }, t('loading'));
       return h('section', { className: 'ort-tier-form', 'aria-busy': busy },
@@ -110,9 +167,36 @@ window.__ModuleLoader__.load({
           h('select', {
             id, className: 'ort-tier-select', value: selected, disabled: busy || !writable,
             'aria-describedby': `${id}-hint`,
-            onChange: (event) => { setDraft({ tier: event.target.value, revision: draft?.revision ?? state.revision }); setNotice(null); },
+            onChange: (event) => update({ tier: event.target.value }),
           }, ...tiers.map((tier) => h('option', { key: tier, value: tier }, t(tier)))),
           h('p', { id: `${id}-hint`, className: 'ort-tier-help' }, t(`hint.${selected}`))),
+        h('div', { className: 'ort-tier-overrides' },
+          h('p', { className: 'ort-tier-field-label', id: `${id}-overrides` },
+            h('strong', null, t('overridesTitle'))),
+          h('p', { className: 'ort-tier-help' }, t('overridesIntro')),
+          overrides.length === 0
+            ? h('p', { className: 'ort-tier-help' }, t('overridesEmpty'))
+            : h('ul', { className: 'ort-tier-list', 'aria-labelledby': `${id}-overrides` },
+              ...overrides.map((entry) => h('li', { key: entry.model, className: 'ort-tier-row' },
+                h('code', null, entry.model),
+                h('label', { className: 'ort-tier-help', htmlFor: `${id}-${entry.model}` }, t('overrideTarget')),
+                h('select', {
+                  id: `${id}-${entry.model}`, className: 'ort-tier-select', value: entry.tier, disabled: busy || !writable,
+                  onChange: (event) => update({ overrides: overrides.map((item) => item.model === entry.model ? { model: item.model, tier: event.target.value } : item) }),
+                }, ...tiers.map((tier) => h('option', { key: tier, value: tier }, t(tier)))),
+                h('button', {
+                  type: 'button', className: 'ort-tier-button', disabled: busy || !writable,
+                  onClick: () => update({ overrides: overrides.filter((item) => item.model !== entry.model) }),
+                }, t('overrideRemove'))))),
+          h('div', { className: 'ort-tier-row' },
+            h('label', { className: 'ort-tier-help', htmlFor: `${id}-new` }, t('overrideModel')),
+            h('input', {
+              id: `${id}-new`, className: 'ort-tier-input', type: 'text', value: newModel, disabled: busy || !writable,
+              placeholder: t('overridePlaceholder'), spellCheck: false, autoComplete: 'off',
+              onChange: (event) => setNewModel(event.target.value),
+              onKeyDown: (event) => { if (event.key === 'Enter') { event.preventDefault(); addOverride(); } },
+            }),
+            h('button', { type: 'button', className: 'ort-tier-button', disabled: busy || !writable, onClick: addOverride }, t('overrideAdd')))),
         h('p', { className: 'ort-tier-warning' }, t('billing')),
         !writable ? h('p', { role: 'status', className: 'ort-tier-help' }, t('readonly')) : null,
         conflict ? h('p', { role: 'status', className: 'ort-tier-warning' }, t('changed')) : null,

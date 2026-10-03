@@ -24,6 +24,11 @@ async function render(form) {
   return view;
 }
 const buttons = (view) => view.root.findAllByType('button');
+const button = (view, label) => {
+  const found = buttons(view).find((node) => node.props.children === label);
+  assert.ok(found, `必须渲染出「${label}」按钮`);
+  return found;
+};
 const textOf = (view) => JSON.stringify(view.toJSON());
 
 // 用真实 React 测试组件行为，不是浏览器视觉验证或 mock 预览页面。
@@ -37,6 +42,7 @@ test('管理页注册、中文档位解释、费用风险和主题 token', async
   assert.ok(textOf(view).includes('延迟更高'));
   assert.ok(textOf(view).includes('实际服务档位与费用'));
   assert.ok(textOf(view).includes('不改 API key、模型或 thinking'));
+  assert.ok(textOf(view).includes('按模型覆盖'));
   const css = view.root.findByType('style').props.children;
   const used = [...css.matchAll(/var\((--[^)]+)\)/g)].map((match) => match[1]);
   assert.ok(used.every((token) => token.startsWith('--dsw-alias-')));
@@ -46,12 +52,15 @@ test('只有点击保存才写入，字段级修改并携带读取 revision', as
   const calls = [];
   const form = { state: state(), mutate: async (...args) => { calls.push(args); return true; } };
   const view = await render(form); tctx.after(async () => { await act(async () => view.unmount()); });
-  assert.equal(buttons(view)[0].props.disabled, true);
+  assert.equal(button(view, t('save')).props.disabled, true);
   await act(async () => view.root.findByType('select').props.onChange({ target: { value: 'priority' } }));
   assert.equal(calls.length, 0);
   assert.ok(textOf(view).includes('价格可能更高'));
-  await act(async () => { await buttons(view)[0].props.onClick(); });
-  assert.equal(JSON.stringify(calls[0]), JSON.stringify([[{ op: 'set', path: ['serviceTier'], value: 'priority' }], 7]));
+  await act(async () => { await button(view, t('save')).props.onClick(); });
+  assert.equal(JSON.stringify(calls[0]), JSON.stringify([[
+    { op: 'set', path: ['serviceTier'], value: 'priority' },
+    { op: 'unset', path: ['modelServiceTiers'] },
+  ], 7]));
   assert.ok(textOf(view).includes('已保存'));
 });
 
@@ -60,17 +69,42 @@ test('不发送 tier 使用 null，恢复默认使用 unset，不混淆两者', 
   const view = await render({ state: state(), mutate: async (...args) => { calls.push(args); return true; } });
   tctx.after(async () => { await act(async () => view.unmount()); });
   await act(async () => view.root.findByType('select').props.onChange({ target: { value: 'omit' } }));
-  await act(async () => { await buttons(view)[0].props.onClick(); });
+  await act(async () => { await button(view, t('save')).props.onClick(); });
   assert.equal(calls[0][0][0].value, null);
-  await act(async () => { await buttons(view)[1].props.onClick(); });
-  assert.equal(calls[1][0][0].op, 'unset');
+  await act(async () => { await button(view, t('reset')).props.onClick(); });
+  assert.equal(JSON.stringify(calls[1][0]), JSON.stringify([{ op: 'unset', path: ['serviceTier'] }]));
+});
+
+test('按模型覆盖可增删改，并与全局档位在同一次写入中提交', async (tctx) => {
+  const calls = [];
+  const form = {
+    state: state({ value: { serviceTier: 'flex', modelServiceTiers: [{ model: 'vendor/one', tier: 'priority' }] } }),
+    mutate: async (...args) => { calls.push(args); return true; },
+  };
+  const view = await render(form); tctx.after(async () => { await act(async () => view.unmount()); });
+  assert.ok(textOf(view).includes('vendor/one'));
+  // 空输入不得产生一行覆盖。
+  await act(async () => { await button(view, t('overrideAdd')).props.onClick(); });
+  assert.ok(view.root.findByProps({ role: 'alert' }));
+  await act(async () => view.root.findByType('input').props.onChange({ target: { value: 'vendor/two' } }));
+  await act(async () => { await button(view, t('overrideAdd')).props.onClick(); });
+  await act(async () => view.root.findAllByType('select')[1].props.onChange({ target: { value: 'omit' } }));
+  await act(async () => { await button(view, t('save')).props.onClick(); });
+  assert.equal(JSON.stringify(calls[0][0][1]), JSON.stringify({
+    op: 'set', path: ['modelServiceTiers'],
+    value: [{ model: 'vendor/one', tier: 'omit' }, { model: 'vendor/two', tier: 'flex' }],
+  }));
+  // 删除唯一一行后，覆盖表必须清除而不是写入空数组。
+  await act(async () => { await button(view, t('overrideRemove')).props.onClick(); });
+  await act(async () => { await button(view, t('save')).props.onClick(); });
+  assert.equal(JSON.stringify(calls[1][0][1]), JSON.stringify({ op: 'unset', path: ['modelServiceTiers'] }));
 });
 
 test('保存拒绝或网络异常显示错误，不报虚假成功，保留草稿', async (tctx) => {
   for (const mutate of [async () => false, async () => { throw new Error('测试连接失败'); }]) {
     const view = await render({ state: state(), mutate });
     await act(async () => view.root.findByType('select').props.onChange({ target: { value: 'ultrafast' } }));
-    await act(async () => { await buttons(view)[0].props.onClick(); });
+    await act(async () => { await button(view, t('save')).props.onClick(); });
     assert.ok(view.root.findByProps({ role: 'alert' }));
     assert.ok(!textOf(view).includes('已保存'));
     assert.equal(view.root.findByType('select').props.value, 'ultrafast');
@@ -87,7 +121,7 @@ test('草稿保留原版本 fence，重复点击不产生重复写入', async (t
   await act(async () => view.update(React.createElement(Component, { view: 'page', t, form: { state: state({ revision: 8 }), mutate } })));
   assert.ok(textOf(view).includes('不会静默覆盖'));
   let pending;
-  await act(async () => { const click = buttons(view)[0].props.onClick; pending = click(); void click(); });
+  await act(async () => { const click = button(view, t('save')).props.onClick; pending = click(); void click(); });
   assert.equal(calls.length, 1);
   assert.equal(calls[0][1], 7);
   assert.equal(view.root.findByType('select').props.disabled, true);
@@ -98,9 +132,9 @@ test('加载、不可用、只读及 memory 页面不会写 Host', async () => {
   for (const variant of [{ status: 'loading' }, { status: 'unavailable' }, { writable: false }, { mode: 'memory' }]) {
     let writes = 0;
     const view = await render({ state: state(variant), mutate: async () => { writes++; return true; } });
-    for (const button of buttons(view)) {
-      assert.equal(button.props.disabled, true);
-      await act(async () => { await button.props.onClick(); });
+    for (const item of buttons(view)) {
+      assert.equal(item.props.disabled, true);
+      await act(async () => { await item.props.onClick(); });
     }
     assert.equal(writes, 0);
     await act(async () => view.unmount());

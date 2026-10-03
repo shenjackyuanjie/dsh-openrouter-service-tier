@@ -16,8 +16,8 @@
 
 | 配套公开组件 | 类型检查/构建 | 离线测试 |
 | --- | --- | --- |
-| DSH `0.2.0-rc.2` / Cordis `4.0.4` / Loader `1.0.5` / Schemastery `3.18.4` | 通过 | 24/24 |
-| DSH `0.2.1-alpha.1` / Cordis `4.0.5-alpha.1` / Loader `1.0.6-alpha.1` / Schemastery `3.18.5-alpha.1` | 通过 | 24/24 |
+| DSH `0.2.0-rc.2` / Cordis `4.0.4` / Loader `1.0.5` / Schemastery `3.18.4` | 通过 | 32/32 |
+| DSH `0.2.1-alpha.1` / Cordis `4.0.5-alpha.1` / Loader `1.0.6-alpha.1` / Schemastery `3.18.5-alpha.1` | 通过 | 32/32 |
 
 两者均固定 pi-ai `0.87.1`。测试包含原协议回归、真实 React 的组件行为、真实 Settings + Loader 的字段热更新/版本冲突与配置工具卸载。配置写入边界使用本项目独立测试文件替身，不触碰真实 profile。
 
@@ -38,3 +38,21 @@ Client 只引用宿主 React，所有颜色使用已 inspect 的主题 tokens；
 没有浏览器控制，未验证实际布局、console、明暗主题，也未通过真实页面点击保存来验证 profile YAML 端到端写入。不得把实时 slot 注册或 React 组件单元测试当作浏览器截图验证。
 
 本次 UI 开发没有新增真实 OpenRouter 请求。此前真实 flex 的用户核验继续以 [真实请求报告](./live-smoke.md) 为准。
+
+## 0.2.2：按模型覆盖、命令与冲突核查
+
+在原有全局档位之外增加三件事，均验证过：
+
+1. **按模型覆盖**。`modelServiceTiers` 是按模型覆盖的数组，优先级为 `该模型覆盖 > 全局档位 > 不发送`。覆盖里的 `omit` 让该模型即使有全局档位也不带 `service_tier`。覆盖表为空时清除字段而不是写空数组。测试用两个真实模型走完整请求流程，确认覆盖只影响目标模型、另一模型仍用全局值。
+2. **`/openrouter-tier` 命令**。与 UI、Agent 工具共用宿主 `settings.mutate` 和 revision fence，支持查看、设置全局、设置单模型、`reset` 全局、`reset <模型>`。测试拒绝未知档位、未知模型与多余参数，并断言命令在卸载后移除。
+3. **上游失败的可重试性核查**。宿主只重试适配器分类为可重试码的失败，分类依据是错误文本。本插件的 `retryPolicy` 显式声明 `EMPTY_RESPONSE/RATE_LIMIT/SERVER/TIMEOUT/TRANSPORT`，与宿主默认一致。假服务分别以 503 与 429 拒绝 flex 请求，实测失败落在 `SERVER` 与 `RATE_LIMIT`，两者都在可重试集合内，且失败请求同样携带所选档位。
+
+已知限制：若上游只返回不含状态码的纯文本错误，会被分类为 `PI_AI_ERROR`，不属于默认可重试码，flex 容量恢复后不会自动重试。本插件不改写上游错误文本以伪造可重试性。
+
+### 命名冲突核查
+
+调查发现 `sagmans/dsh-provider-extra` 注册的命令名也是 `service-tier`。宿主命令注册表在重名时**抛错**而不是覆盖，因此若两边同名，后加载的插件会注册失败——装一个会弄坏另一个，且谁先加载取决于是 bundle 顺序，用户无法预期。
+
+处理方式：本插件命令名改为带路由前缀的 `openrouter-tier`，把厂商中立的 `service-tier` 留给通用档位插件。测试中有一条断言专门禁止重新占用 `service-tier`。
+
+同时确认了其余命名面未被占用：工具名 `openrouter_service_tier`、路由名 `openrouter-tier`、配置行 id、Client slot key 与 settings 命名空间在本仓库之外无 DSH 插件命中。路由重名会由 LLM 以 `DUPLICATE_ADAPTER` 显式拒绝，不会静默替换。

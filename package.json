@@ -1,6 +1,6 @@
 {
   "name": "dsh-openrouter-service-tier",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "为 DeepSeek Harness 的独立 OpenRouter 路由配置 service tier，保留 thinking 和工具调用。",
   "type": "module",
   "license": "MIT",
@@ -47,16 +47,19 @@
     "@deepseek-ai/schemastery": "3.18.4 || 3.18.5-alpha.1",
     "@earendil-works/pi-ai": "0.87.1",
     "@deepseek-ai/dsh-settings": "0.2.0-rc.2 || 0.2.1-alpha.1",
-    "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-alpha.1"
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2 || 0.2.1-alpha.1",
+    "@deepseek-ai/dsh-commands": "0.2.0-rc.2 || 0.2.1-alpha.1"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-settings": { "optional": true },
-    "@deepseek-ai/dsh-tools": { "optional": true }
+    "@deepseek-ai/dsh-tools": { "optional": true },
+    "@deepseek-ai/dsh-commands": { "optional": true }
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
     "@deepseek-ai/cordis-plugin-loader": "1.0.5",
     "@deepseek-ai/dsh-credentials": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-commands": "0.2.0-rc.2",
     "@deepseek-ai/dsh-llm": "0.2.0-rc.2",
     "@deepseek-ai/dsh-llm-pi-ai": "0.2.0-rc.2",
     "@deepseek-ai/dsh-settings": "0.2.0-rc.2",

@@ -22,6 +22,16 @@ export async function fakeOpenRouter() {
     for await (const part of req) body += part;
     requests.push({ path: req.url, body: JSON.parse(body), authorization: req.headers.authorization });
     if (mode === 'hang') return;
+    // 上游故障模式：用于核查 flex 容量不足时的错误分类与可重试性。
+    if (mode === 'error429' || mode === 'error503') {
+      const status = mode === 'error429' ? 429 : 503;
+      const message = status === 503
+        ? 'No available providers for the requested service tier'
+        : 'Rate limit exceeded for flex tier';
+      res.writeHead(status, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: { message, code: status, metadata: { provider_name: 'fake-upstream' } } }));
+      return;
+    }
     res.writeHead(200, { 'content-type': 'text/event-stream' });
     const emit = (delta, finish_reason = null, extra = {}) => res.write(`data: ${JSON.stringify({ id: 'fake-response', object: 'chat.completion.chunk', created: 1, model: MODEL, choices: [{ index: 0, delta, finish_reason }], ...extra })}\n\n`);
     emit({ role: 'assistant', reasoning: '离线 thinking' });
