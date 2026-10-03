@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "OpenRouter Service Tier",
+    "description": "Choose a request tier on the Plugins configuration page, without changing credentials, models or thinking."
+  }
+}

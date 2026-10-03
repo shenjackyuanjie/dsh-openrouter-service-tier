@@ -1,0 +1,7 @@
+- insert:
+    - id: openrouter-service-tier
+      name: dsh-openrouter-service-tier
+      config:
+        provider: openrouter-tier
+        apiKeyEnv: OPENROUTER_API_KEY
+        serviceTier: flex

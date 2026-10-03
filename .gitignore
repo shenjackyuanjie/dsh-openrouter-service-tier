@@ -1,0 +1,8 @@
+node_modules/
+lib/
+*.tgz
+.compat/
+.cache/
+.env
+.env.*
+handoff.md
