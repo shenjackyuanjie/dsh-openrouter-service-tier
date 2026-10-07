@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "OpenRouter 服务档位",
-    "description": "在插件管理页选择请求档位；使用独立 OpenRouter 路由，不改凭据、模型或 thinking。"
+    "description": "通过命令、工具或原生设置控制 OpenRouter 请求档位，保留原生模型目录、凭据与 thinking。"
   }
 }

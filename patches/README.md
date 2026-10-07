@@ -9,7 +9,7 @@ rc.2 的源码基线为公开 tag `dsh-v0.2.0-rc.2`；alpha 的基线为 `dsh-v0
 
 ## 源码实施
 
-在匹配版本、干净的公开源码树中应用 source patch，安装其开发依赖，运行相关测试与 `pnpm exec tsc -b packages/llm/llm-pi-ai`。本仓库的 `.compat/host-rc2` 是独立 detached worktree，不是用户运行宿主。
+在匹配版本、干净的公开源码树中应用 source patch，安装其开发依赖，运行相关测试与 `pnpm exec tsc -b packages/llm/llm-pi-ai`。
 
 ```powershell
 git apply D:\path\patches\llm-pi-ai-0.2.0-rc.2.source.patch
@@ -34,4 +34,4 @@ node scripts/build-host-patch.mjs <对应版本源码根目录> <原始解包的
 
 在实际负责解析原生包的 pnpm 项目中，将版本限定的补丁登记到 `pnpm-workspace.yaml` 的 `patchedDependencies`，再运行 `pnpm install` 并重启 Host。不要手改 node_modules；插件开发依赖补丁并不等于运行宿主已打补丁。
 
-参见[插件 README](../README.md)的安装与迁移步骤。两版插件测试分别为 `npm run check` 和 `node scripts/test-alpha.mjs`；前者使用本仓库 rc.2 patch，后者在独立目录使用 alpha patch。
+参见[插件 README](../README.md)的安装步骤。两版插件测试分别为 `npm run check` 和 `node scripts/test-alpha.mjs`；前者使用本仓库 rc.2 patch，后者在独立目录使用 alpha patch。

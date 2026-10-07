@@ -1,6 +1,6 @@
 # dsh-openrouter-service-tier
 
-`0.3.0`：控制 DeepSeek Harness **原生 `openrouter`** 请求档位，不再注册 `openrouter-tier` adapter 或第二套模型目录。thinking、认证、消息、工具、附件、replay、取消、超时与重试仍走宿主原生调用链。
+`0.3.0`：控制 DeepSeek Harness **原生 `openrouter`** 请求档位，不注册独立 adapter 或第二套模型目录。thinking、认证、消息、工具、附件、replay、取消、超时与重试走宿主原生调用链。
 
 ## 宿主要求
 
@@ -27,7 +27,7 @@ patchedDependencies:
 - `/openrouter-tier reset`：清除全局用户覆盖，恢复底层继承。
 - `/openrouter-tier openai/gpt-6-luna reset`：删除该模型的有效覆盖；最后一项删除后写空数组，屏蔽底层覆盖数组。
 
-Agent 工具名仍是 `openrouter_service_tier`，支持 `get`、`set`、`reset`。修改前先 `get`，携带返回的 **原生 namespace revision** 作为 `expectedRevision`；并发冲突明确失败。结果只包含档位和 revision，不投影 headers 或其他连接设置。
+Agent 工具名为 `openrouter_service_tier`，支持 `get`、`set`、`reset`。修改前先 `get`，携带返回的 **原生 namespace revision** 作为 `expectedRevision`；并发冲突明确失败。结果只包含档位和 revision，不投影 headers 或其他连接设置。
 
 修改影响当前 profile 所有会话的**新准备请求**；已 prepare 或进行中的请求保持原快照。插件停用只撤回命令与工具，不清空原生档位、不移除模型。
 
@@ -41,7 +41,7 @@ Agent 工具名仍是 `openrouter_service_tier`，支持 `get`、`set`、`reset`
 
 ### 设置入口
 
-旧中文选择器已撤下，它绑定旧插件 namespace，不能安全复用成原生表单。当前通过**原生插件设置入口**、命令或工具修改；**没有宣称专用面板已跨 namespace 迁移**。本插件没有客户端 bundle，也没有自己的档位 namespace。
+通过**原生 `llm-pi-ai` 插件设置入口**、命令或工具修改。本插件没有专用设置面板、客户端 bundle 或自己的档位 namespace，控制插件配置固定为 `{}`。
 
 ## 构建与安装
 
@@ -60,16 +60,6 @@ dsh plugin --profile web add D:\path\dsh-openrouter-service-tier-0.3.0.tgz --ign
 ```
 
 保留现有 bundle 选择状态；首次安装需在插件管理器启用该 bundle。安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不默认把原生请求改为 flex。更换宿主或插件代码后重启 Host；之后档位设置通过原生 volatile 热更新生效。
-
-## 从 0.2.x 迁移
-
-1. 为实际宿主版本安装匹配补丁，确认宿主实际加载该独立包。
-2. 记录想保留的旧档位选择，升级插件，将旧插件配置改为 `{}`。旧 provider、key、endpoint、models、reasoning 和超时不能继续留在控制插件里。
-3. 在原生 OpenRouter 的 `serviceTier` / `modelServiceTiers` 中显式设置要保留的档位；升级不会自动把默认 flex 写入原生配置，也不自动复制凭据。
-4. 旧 `openrouter-tier` 会话手动切换到原生 `openrouter`。历史 source、replay 或日志不自动重写，不承诺旧会话无损迁移。
-5. 重启后确认只剩原生 OpenRouter 目录，并用 `/openrouter-tier` 检查能力和当前档位。
-
-[旧独立路由实测](./validation/live-smoke.md)和[旧 UI 验证](./validation/ui-selector.md)仅是 0.2.x 历史记录，不是新原生方案验收。
 
 ## 验证
 

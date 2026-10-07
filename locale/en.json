@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "OpenRouter Service Tier",
-    "description": "Choose a request tier on the Plugins configuration page, without changing credentials, models or thinking."
+    "description": "Control native OpenRouter request tiers through commands, tools or native settings, preserving models, credentials and thinking."
   }
 }
