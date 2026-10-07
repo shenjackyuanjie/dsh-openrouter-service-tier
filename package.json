@@ -1,9 +1,21 @@
 {
-  "name": "dsh-openrouter-service-tier",
+  "name": "@shenjackyuanjie/dsh-openrouter-service-tier",
   "version": "0.3.0",
   "description": "控制 DeepSeek Harness 原生 OpenRouter service tier，不新增模型目录，保留 thinking 和原生调用链。",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shenjackyuanjie/dsh-openrouter-service-tier.git"
+  },
+  "homepage": "https://github.com/shenjackyuanjie/dsh-openrouter-service-tier#readme",
+  "bugs": {
+    "url": "https://github.com/shenjackyuanjie/dsh-openrouter-service-tier/issues"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "engines": {
     "node": ">=22.19.0"
   },
@@ -28,6 +40,7 @@
     }
   },
   "scripts": {
+    "prepack": "npm run build",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test --test-isolation=none test/*.test.mjs",

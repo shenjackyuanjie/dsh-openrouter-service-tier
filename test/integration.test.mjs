@@ -117,5 +117,5 @@ test('取消和 idle timeout 复用 adapter 行为', async (t) => {
 
 test('bundle 仅插控制器，不提供档位默认值或第二套路由', async () => {
   const patch = yaml.load(await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8'));
-  assert.deepEqual(patch, [{ insert: [{ id: 'openrouter-service-tier', name: 'dsh-openrouter-service-tier', config: {} }] }]);
+  assert.deepEqual(patch, [{ insert: [{ id: 'openrouter-service-tier', name: '@shenjackyuanjie/dsh-openrouter-service-tier', config: {} }] }]);
 });

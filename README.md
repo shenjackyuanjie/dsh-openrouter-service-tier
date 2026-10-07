@@ -43,7 +43,23 @@ Agent 工具名为 `openrouter_service_tier`，支持 `get`、`set`、`reset`。
 
 通过**原生 `llm-pi-ai` 插件设置入口**、命令或工具修改。本插件没有专用设置面板、客户端 bundle 或自己的档位 namespace，控制插件配置固定为 `{}`。
 
-## 构建与安装
+## 安装
+
+包名：`@shenjackyuanjie/dsh-openrouter-service-tier`，registry：GitHub Packages。先按上文为宿主应用对应补丁。
+
+GitHub npm registry 安装公开包也需要认证，使用具备 `read:packages` 的 classic PAT，在本机终端登录（不要提交 token）：
+
+```powershell
+npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
+npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
+dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.3.0 --ignore-scripts
+```
+
+登录时 Username 填 GitHub 用户名，Password 填 PAT。其他 scope 的依赖继续从原 npm registry 获取。参见 [GitHub npm registry 认证说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。
+
+首次安装需在插件管理器启用该 bundle。安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不默认把原生请求改为 flex。更换宿主或插件代码后重启 Host；之后档位设置通过原生 volatile 热更新生效。
+
+## 本地构建与打包
 
 要求 Node `>=22.19.0`，开发使用 pnpm 11。开发依赖用 rc.2，并通过本仓库固定补丁进行离线测试；这不改变用户宿主。
 
@@ -56,10 +72,22 @@ npm pack --ignore-scripts --pack-destination .cache
 构建产生 `lib/`，安装前必须构建。将 tarball 安装到原 profile，例如：
 
 ```powershell
-dsh plugin --profile web add D:\path\dsh-openrouter-service-tier-0.3.0.tgz --ignore-scripts
+dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.3.0.tgz --ignore-scripts
 ```
 
-保留现有 bundle 选择状态；首次安装需在插件管理器启用该 bundle。安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不默认把原生请求改为 flex。更换宿主或插件代码后重启 Host；之后档位设置通过原生 volatile 热更新生效。
+本地 tarball 安装不需要 GitHub registry 认证。
+
+## 发布
+
+包通过 `publishConfig` 限定发布到 GitHub Packages，并关联本仓库。使用具备 `write:packages` 的 classic PAT 认证后：
+
+```powershell
+npm run check
+node scripts/test-alpha.mjs
+npm publish
+```
+
+`prepack` 自动构建 `lib/`。首次发布后，在 GitHub Package settings 中确认包可见性为 Public；包的可见性不自动继承公开仓库。后续发布必须先更新版本号。
 
 ## 验证
 
