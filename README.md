@@ -1,222 +1,76 @@
 # dsh-openrouter-service-tier
 
-为 DeepSeek Harness（DSH）提供独立 OpenRouter 服务档位路由，以及插件管理页面中的中文 tier 选择器。
+`0.3.0`：控制 DeepSeek Harness **原生 `openrouter`** 请求档位，不再注册 `openrouter-tier` adapter 或第二套模型目录。thinking、认证、消息、工具、附件、replay、取消、超时与重试仍走宿主原生调用链。
 
-**当前版本 `0.2.2`。** 不修改 DSH、不启动代理、不复制协议适配器。默认 bundle 注册 `openrouter-tier`，请求 `flex`；模型来自 pi-ai 的 OpenRouter Chat Completions 目录，**不固定 Luna、不统一强设 high thinking**。原 `openrouter` 路由不受影响，使用本插件需要选择独立路由。
+## 宿主要求
 
-档位可以在三个入口修改，三者写入同一处宿主配置：插件管理页、`/openrouter-tier` 命令、`openrouter_service_tier` Agent 工具。
+支持 `0.2.0-rc.2` 与 `0.2.1-alpha.1`，两版均需对应的 `llm-pi-ai` 原生档位补丁。插件不是宿主升级器；未打补丁时工具和命令明确拒绝，不会假报配置成功。不能把 alpha 整包装进 rc.2。
 
-## 插件管理页面
+[`patches/`](./patches/) 提供固定版本的 package-manager 补丁。实际加载独立 npm 包的宿主可在所属 pnpm 项目的 `patchedDependencies` 中配置对应补丁，再运行 `pnpm install` 并重启。宿主若内联该包，必须修改对应版本源码并重新构建宿主；单独 patch 一个未加载的依赖无效。禁止手改 `node_modules` 或共享 store。
 
-入口：**左侧「插件」→「OpenRouter 服务档位」→组件行的「配置」**。
-
-选择器由 `plugins.row.config` 公开 slot 提供，不替换插件管理器或原 Models 编辑器。页面包含中文档位名称、成本/延迟说明、作用范围、保存结果与错误反馈；也提供对应英文翻译，随宿主语言切换。
-
-| 选择 | 请求行为 | 主要取舍 |
-| --- | --- | --- |
-| 不发送 tier 参数 | 不携带 `service_tier` | 由 OpenRouter 的模型、路由与账户规则决定 |
-| 标准（`default`） | 请求标准档位 | 标准容量和价格 |
-| 弹性（`flex`） | 请求 flex | 通常更便宜，但延迟和容量风险更高 |
-| 优先（`priority`） | 请求优先档位 | 可能更快、更可靠，也可能更贵 |
-| 快速（`fast`） | priority 的别名 | 与 priority 相同的取舍 |
-| 极速（`ultrafast`） | 请求极速档位 | 仅部分模型支持，费用可能是标准档的数倍 |
-
-### 保存和恢复默认
-
-- 下拉选择只改变本页草稿，**点击「保存」才会持久化**。离开页面不保存则丢弃草稿。
-- 保存只写档位字段，不改 key、模型列表、thinking 或其他连接配置。
-- 修改影响**当前 profile 所有会话的后续请求**，不是单个会话偏好。正在进行或已经 prepare 的请求保留原档位。
-- 「不发送 tier 参数」保存为显式 `serviceTier: null`，覆盖 bundle 的 flex 默认值。
-- 「恢复默认」清除全局档位的用户覆盖，重新继承 bundle/上层配置；默认 bundle 为 flex，**不等同于不发送参数**。该按钮不影响按模型覆盖。
-- 保存期间禁止重复操作；并发修改会按读取时的 revision 检查，不静默覆盖他人配置。拒绝或网络失败显示中文错误，保留草稿供重试，不显示虚假成功。
-- 配置不可用、只读连接或浏览器 memory 模式不能写入 Host，页面会明确提示。
-- tier 是请求选择，不是实际计费保证。请以 OpenRouter 日志中的实际档位与费用为准。
-
-### 按模型覆盖
-
-页面下半部分是可选覆盖表，用于“整体便宜、个别模型要可靠”这类组合。
-
-- 每行是 `模型 → 档位`，优先于全局档位；未列出的模型继续使用全局档位。
-- 覆盖行可以选「不发送 tier 参数」，此时该模型即使有全局档位也不携带 `service_tier`。
-- 模型 id 必须是本插件 `models` 列表中的 OpenRouter 模型（形如 `vendor/model`）。Host 会拒绝其他值，因此写不进永不生效的覆盖。
-- 覆盖表为空时保存为字段清除，而不是空数组。
-- 覆盖与全局档位在同一次写入中提交，共用读取时的 revision。
-- 模型清单不投影到浏览器，所以模型 id 由输入框填写；拼写错误会得到中文错误提示，而不是静默忽略。
-
-档位解析优先级：`该模型的覆盖 > 全局档位 > 不发送`。
-
-第一版未增加会话级按钮、原 Models 页 tier 控件、实际 tier/费用展示或原 provider 配置继承。
-
-## 工作方式
-
-```text
-DSH llm 服务
-  └─ openrouter-tier（插件独立路由）
-      └─ 公开 PiAiAdapter
-          └─ 包装 pi-ai OpenRouter provider
-              └─ 现有 Chat Completions 协议实现
-                  └─ onPayload 添加顶层 service_tier
+```yaml
+patchedDependencies:
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.0-rc.2': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.0-rc.2.patch
 ```
 
-消息转换、thinking、工具调用、流式解析、replay、取消、超时和附件转换由现有 `@deepseek-ai/dsh-llm-pi-ai` 与 pi-ai 负责。插件仅装配公开 profile、按请求解析凭据、包装 provider，并用 Cordis effect 注册与卸载贡献。
+使用 alpha 时改为 `0.2.1-alpha.1` 和对应文件。源码补丁及构建说明见 [补丁说明](./patches/README.md)，本机验收见 [原生方案验证](./validation/native-tier.md)。
 
-`stream`、`streamSimple` 两个入口都包装。原 `onPayload` 先执行，可异步、原地修改或返回替换对象；最后按该请求的模型注入插件拥有的 tier。解析结果为空（未设置、或该模型选「不发送」）时不添加 hook，不强制 default；只有全局档位和覆盖都为空时才完全不包装请求。
+## 使用
+
+先在原生模型设置启用 OpenRouter。本插件通过 `ctx.llm.listConfigurableProviders()` 动态定位其 namespace 和 profile 路径，不硬编码实例 ID，不补建 profile，不读取或修改凭据。
+
+- `/openrouter-tier`：查看原生档位。
+- `/openrouter-tier flex`：全局 flex。
+- `/openrouter-tier openai/gpt-6-luna priority`：只覆盖该模型。
+- `/openrouter-tier openai/gpt-6-luna omit`：该模型不发送 tier。
+- `/openrouter-tier omit`：全局不发送（保存为 null）。
+- `/openrouter-tier reset`：清除全局用户覆盖，恢复底层继承。
+- `/openrouter-tier openai/gpt-6-luna reset`：删除该模型的有效覆盖；最后一项删除后写空数组，屏蔽底层覆盖数组。
+
+Agent 工具名仍是 `openrouter_service_tier`，支持 `get`、`set`、`reset`。修改前先 `get`，携带返回的 **原生 namespace revision** 作为 `expectedRevision`；并发冲突明确失败。结果只包含档位和 revision，不投影 headers 或其他连接设置。
+
+修改影响当前 profile 所有会话的**新准备请求**；已 prepare 或进行中的请求保持原快照。插件停用只撤回命令与工具，不清空原生档位、不移除模型。
+
+### 档位语义
+
+有效优先级是 `精确模型覆盖 > 全局档位 > 不发送`。模型 `omit` 屏蔽全局档位；全局 null 不屏蔽模型显式 priority。`unset` 是恢复底层继承，可能重新得到 flex；null/omit 才是显式不发送。空数组屏蔽继承数组，清除整个数组字段则恢复底层数组。
+
+协议值为 `default`、`flex`、`priority`、`fast`、`ultrafast`。`fast` 是 priority 别名；费用与可用性以实际服务为准，不保证按请求档位计费。宿主只在原生 OpenRouter 的 Chat Completions、Responses、Anthropic Messages 请求 body 顶层设置 `service_tier`，无有效档位不加 hook，不发 inherit/omit/null。参见 [OpenRouter 文档](https://openrouter.ai/docs/guides/features/service-tiers)。
+
+模型覆盖按当前原生目录及用户配置动态校验，包括非 Chat 模型；失效覆盖不会静默当作有效配置，删除失效覆盖仍可用于修复。
+
+### 设置入口
+
+旧中文选择器已撤下，它绑定旧插件 namespace，不能安全复用成原生表单。当前通过**原生插件设置入口**、命令或工具修改；**没有宣称专用面板已跨 namespace 迁移**。本插件没有客户端 bundle，也没有自己的档位 namespace。
 
 ## 构建与安装
 
-要求 Node `>=22.19.0`，开发使用 pnpm 11。本项目独立于 Harness workspace，不会自动升级宿主。
+要求 Node `>=22.19.0`，开发使用 pnpm 11。开发依赖用 rc.2，并通过本仓库固定补丁进行离线测试；这不改变用户宿主。
 
 ```powershell
-cd D:\githubs\deepseek\dsh-openrouter-service-tier
-npx --yes pnpm@11.0.0 install --frozen-lockfile --ignore-scripts
+pnpm install --frozen-lockfile --ignore-scripts
 npm run check
-```
-
-构建产生 `lib/`。没有自动执行的 install/build 脚本，安装前必须构建。首次可以通过 Harness Plugin Manager 安装该目录的绝对路径。
-
-已安装本地链接再使用相同路径时，管理器可能返回 `ambiguous-install`；升级建议安装新版本 tarball：
-
-```powershell
 npm pack --ignore-scripts --pack-destination .cache
 ```
 
-再通过 `plugin_manager` 工具调用：
+构建产生 `lib/`，安装前必须构建。将 tarball 安装到原 profile，例如：
 
-```json
-{
-  "action": "install_bundle",
-  "target": "D:\\githubs\\deepseek\\dsh-openrouter-service-tier\\.cache\\dsh-openrouter-service-tier-0.2.1.tgz"
-}
+```powershell
+dsh plugin --profile web add D:\path\dsh-openrouter-service-tier-0.3.0.tgz --ignore-scripts
 ```
 
-上面是工具参数，不是 PowerShell 命令。也可在插件管理器安装界面输入 tarball 的实际绝对路径。以返回的 `application` 与 `warnings` 为准：`applied` 为热生效，**`restart-required` 需要重启 Harness**。刷新网页不等于重启 Host；更换已加载包代码通常需要重启。
+保留现有 bundle 选择状态；首次安装需在插件管理器启用该 bundle。安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不默认把原生请求改为 flex。更换宿主或插件代码后重启 Host；之后档位设置通过原生 volatile 热更新生效。
 
-安装影响当前 profile 的所有会话，插件行 id 为 `openrouter-service-tier`。宿主依赖声明为 peers，不将宿主代码打包进产物；pi-ai 固定为 `0.87.1`。本地目录可能使用开发依赖，不保证自动继承 Harness 的 pi-ai 补丁；tarball 安装由宿主解析 peers。处理多 MB 工具参数时，应确认实际 pi-ai 带有 Harness 的工具参数解析性能补丁。
+## 从 0.2.x 迁移
 
-### 当前安装状态
+1. 为实际宿主版本安装匹配补丁，确认宿主实际加载该独立包。
+2. 记录想保留的旧档位选择，升级插件，将旧插件配置改为 `{}`。旧 provider、key、endpoint、models、reasoning 和超时不能继续留在控制插件里。
+3. 在原生 OpenRouter 的 `serviceTier` / `modelServiceTiers` 中显式设置要保留的档位；升级不会自动把默认 flex 写入原生配置，也不自动复制凭据。
+4. 旧 `openrouter-tier` 会话手动切换到原生 `openrouter`。历史 source、replay 或日志不自动重写，不承诺旧会话无损迁移。
+5. 重启后确认只剩原生 OpenRouter 目录，并用 `/openrouter-tier` 检查能力和当前档位。
 
-`0.2.1` 已安装到当前 `web` profile，用户已重启并重新连接。重启后的 Host Inspect 确认 `serviceTier` 为 volatile 字段，Client Inspect 确认 `plugins.row.config` 中本插件的选择器注册为 active。配置工具实际执行 `get` 返回当前 `flex`、revision 0；核验过程没有修改档位或发送模型请求。
-
-没有浏览器控制，尚未验证实际页面布局、console、明暗主题或通过页面点击保存的 profile YAML 端到端写入。实时 slot 注册是已加载的证据，不替代视觉验证。
-
-## 模型与配置
-
-在 Harness credentials 服务中配置名为 `OPENROUTER_API_KEY` 的凭据引用，使用模型选择机制选择 `openrouter-tier` 与其目录中的模型。它是引用名，不是 key 本身。
-
-默认 bundle 不再硬编码模型或 thinking：
-
-```yaml
-- insert:
-    - id: openrouter-service-tier
-      name: dsh-openrouter-service-tier
-      config:
-        provider: openrouter-tier
-        apiKeyEnv: OPENROUTER_API_KEY
-        serviceTier: flex
-```
-
-用户覆盖使用同一行 id；下面只展示最小配置，不指定模型：
-
-```yaml
-- id: openrouter-service-tier
-  config:
-    provider: openrouter-tier
-    apiKeyEnv: OPENROUTER_API_KEY
-    serviceTier: flex
-```
-
-手工替换整个 `config` 不做字段深合并；UI 保存使用字段级 mutation，会保留所有未编辑字段。
-
-| 字段 | schema 默认值 | 说明 |
-| --- | --- | --- |
-| `provider` | `openrouter-tier` | 小写连字符独立路由；禁止 `openrouter`，重复路由由 LLM 拒绝 |
-| `apiKeyEnv` | `OPENROUTER_API_KEY` | credentials 服务的 POSIX identifier 引用，不可填实际密钥 |
-| `serviceTier` | 不设置 | 可热更新；支持上述五个协议值，null 表示不发送。默认 bundle 显式为 flex |
-| `modelServiceTiers` | 空表 | 可热更新的按模型覆盖数组，元素为 `{ model, tier }`；`tier` 取五个协议值或 `omit`。模型必须在 `models` 内且不得重复 |
-| `models` | 当前固定 pi-ai OpenRouter 目录中的所有 Chat Completions 模型 | 可用非空、不重复的显式 ID 列表缩小范围。未知或非 Chat Completions 模型拒绝，不虚构能力 |
-| `reasoning` | 不设置 | `off/minimal/low/medium/high/xhigh/max`，由模型能力约束；优先使用请求中的档位 |
-| `baseURL` | 模型目录中的 OpenRouter URL | 可选可信 HTTP(S) API 根地址，禁止 userinfo、查询参数与片段。自定义地址会收到引用的凭据 |
-| `timeoutMs` | SDK 默认 | 非负整数，请求级 SDK 超时；0 的语义由上游决定 |
-| `streamIdleTimeoutMs` | `300000` | 有限正数，最大 `2147483647`，等待下一个事件的 idle 上限 |
-
-`serviceTier` 与 `modelServiceTiers` 是 UI 可编辑的 volatile 字段；连接、模型与其他配置仍通过普通配置管理。默认模型列表从 provider 目录计算，不是手写 ID 清单。Luna 只出现在测试与历史真实验证记录中。
-
-### 凭据与生命周期
-
-- 核心依赖 `llm`、`credentials`。缺服务时等待依赖，不自行回退。
-- 每次请求 `credentials.resolve(ref)`；缺失或空值为 `MISSING_CREDENTIAL`，无效值为 `INVALID_CREDENTIAL`。不使用 pi-ai OAuth、其他账户环境或文件发现，不写授权记录。
-- credentials 服务可按宿主规则解析同名环境/文件引用；插件不直接读取本地凭据、不缓存 key、不输出 key。
-- tier 热更新保持同一 adapter，按下一次操作构造新 profile/provider 快照，旧请求继续使用旧快照。
-- 普通字段变化由 Loader 重建；字段校验在卸载前拒绝非法候选。Loader raw entry 可能保留失败候选，应修正后重新保存，不承诺原始配置自动回滚。
-- 仅 tier 更新不更换 adapter，可保留同 adapter replay 语义；普通字段重建后的跨实例历史可能由 Harness 降级为 provider-neutral 内容。
-- 停用或卸载释放路由、Client slot、配置工具与 `/openrouter-tier` 命令，不主动取消已经准备的请求；调用者通过 signal 取消。
-
-## Agent 配置工具与命令
-
-宿主同时提供 `settings` 和 `tools` 时注册 `openrouter_service_tier`；同时提供 `settings` 和 `commands` 时注册 `/openrouter-tier`。两者和 UI 都调用 **宿主 `settings.mutate`**，不另建配置文件或持久化实现。
-
-`openrouter_service_tier` 工具：
-
-- `get`：读取全局档位、按模型覆盖与 revision，不读取 key、不发送模型请求。
-- `set`：指定档位和最近读取的 `expectedRevision`；`omit` 表示不发送参数。带 `model` 时只改该模型的覆盖。
-- `reset`：提供 `expectedRevision`；带 `model` 时只清除该模型的覆盖，否则清除全局档位。
-
-`/openrouter-tier` 命令：
-
-```text
-/openrouter-tier                    查看当前全局档位与按模型覆盖
-/openrouter-tier flex               设置全局档位
-/openrouter-tier reset              清除全局档位，改为继承
-/openrouter-tier <模型> flex         只为该模型设置档位
-/openrouter-tier <模型> reset        删除该模型的覆盖
-```
-
-命令名带路由前缀。DSH 的命令名在全局层唯一，重名注册会让后来者直接抛错（`command "..." is already registered`），而不是覆盖或合并，因此两个同类插件不可能共用 `/service-tier`。厂商中立的 `service-tier` 留给通用档位插件，本插件用带路由前缀的名字，同时安装时两者各自可用。
-
-没有这些可选服务时，核心路由仍可运行，不额外装配业务依赖。
-
-### 与其他同类插件的边界
-
-- 本插件只注册独立路由 `openrouter-tier`，从不接管或改写原 `openrouter` 路由，因此不会与聚合提供商列表、实时模型目录或原路由类插件争夺同一路由。
-- 档位只在请求内按模型注入 `service_tier`，不改模型、不改 thinking 档位。若另有插件为同一模型注入 reasoning 档位，两者互不覆盖。
-- 路由名重复由 LLM 直接拒绝（显式失败，不静默替换），配置行 id、Client slot key 与 settings 命名空间均为插件独有。
-- `dsh-openrouter-live` 的 `extraBody` 也能发送 `service_tier`，但它属于该插件自己的路由；两者并存时各管一条路由。
+[旧独立路由实测](./validation/live-smoke.md)和[旧 UI 验证](./validation/ui-selector.md)仅是 0.2.x 历史记录，不是新原生方案验收。
 
 ## 验证
 
-```powershell
-npm run check
-node scripts/test-alpha.mjs
-node --check client.js
-npm pack --dry-run --ignore-scripts
-```
-
-主依赖由 [pnpm-lock.yaml](./pnpm-lock.yaml) 固定。alpha 脚本只在本项目 `.compat/alpha/` 构造隔离组合，不升级宿主或修改 profile。
-
-| DSH 组件版本 | Cordis | Schemastery | Loader | pi-ai | 离线测试 |
-| --- | --- | --- | --- | --- | --- |
-| `0.2.0-rc.2` | `4.0.4` | `3.18.4` | `1.0.5` | `0.87.1` | 32/32 通过 |
-| `0.2.1-alpha.1` | `4.0.5-alpha.1` | `3.18.5-alpha.1` | `1.0.6-alpha.1` | `0.87.1` | 32/32 通过 |
-
-覆盖真实 Loader/LLM/adapter 及本地假 HTTP/SSE 的 flex + high、thinking/文本/usage、工具与 replay；凭据失败、配置错误、取消/超时、冲突和卸载；默认目录不固定模型；真实 Settings 的全局档位热更新与按模型覆盖、revision 冲突、旧请求快照、工具/命令清理；上游 5xx 与 429 失败落在可重试错误码上；命令名不得占用 `service-tier`。
-
-UI 行为测试使用真实 React，验证中文说明、主题 token、草稿、保存/重置、null 省略语义、拒绝/网络错误、只读/memory、并发版本与重复提交。持久化边界使用独立测试文件的 configEditor 替身，**不是用户 profile 的端到端 YAML 写入测试**。测试不访问真实 API 或凭据。`react-test-renderer` 会报告弃用警告，但只在开发测试中使用，不打包进浏览器。
-
-本次 UI 开发的证据与未完成的页面核验见 [选择器验证报告](./validation/ui-selector.md)。
-
-### 真实请求记录
-
-旧版路由经用户授权完成两条 `openai/gpt-6-luna` 请求，flex + high，合计 314 tokens。用户随后在 OpenRouter logs 确认实际为 flex；自动 generation 查询为 404，未取得具体费用。两个响应没有可见 reasoning delta，不能宣称真实 thinking 展示通过。完整记录见 [真实请求验证](./validation/live-smoke.md)。本次 UI 开发没有新增付费请求。
-
-## 限制
-
-- 只请求所选 tier，不保证每次实际服务/价格。模型完全没有 flex 节点时仍可能标准路由；UI 中有明确说明，不实施严格 flex 模式。
-- 当前仅支持 Chat Completions，不提供 Responses/Anthropic Messages、按模型覆盖、自动 tier 降级或原 provider 接管。
-- 附件转换委托给 PiAiAdapter，但真实图片/附件未覆盖；上游限制例如 `GenerateOptions.stop` 不支持仍保留。
-- 已验证匹配公开组件的离线组合，不等于两版完整 Web/CLI、明暗主题视觉或真实工具/多轮/图片全部端到端通过。
-
-## 参考
-
-- [OpenRouter service tiers](https://openrouter.ai/docs/guides/features/service-tiers)
-- [DSH 两版比较](https://github.com/deepseek-ai/deepseek-harness/compare/dsh-v0.2.0-rc.2...dsh-v0.2.1-alpha.1)
-- [pi-ai](https://github.com/earendil-works/pi)
+`npm run check` 执行类型检查与离线 Loader、LLM、Settings 回归。`node scripts/test-alpha.mjs` 在 `.compat/alpha` 构造独立 alpha 组合并应用对应宿主补丁，不安装用户 profile。宿主相关测试、keyless snapshot、启动和真实请求的实际执行结果记录在 [原生方案验证](./validation/native-tier.md)。
