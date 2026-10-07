@@ -1,0 +1,501 @@
+diff --git a/packages/llm/llm-pi-ai/README.i18n.yaml b/packages/llm/llm-pi-ai/README.i18n.yaml
+index 360574b758..2e0bbec3f7 100644
+--- a/packages/llm/llm-pi-ai/README.i18n.yaml
++++ b/packages/llm/llm-pi-ai/README.i18n.yaml
+@@ -3,8 +3,11 @@
+ # After editing either side, bring the other along and re-record with:
+ #   pnpm run verify-translation-pairing --write packages/llm/llm-pi-ai/README.md
+ /:
+-  en: 8a6ec0a589e6fd18
+-  zh: e85fc352c9cba373
++  en: cb3f91d54eee30e5
++  zh: cb3f91d54eee30e5
++/description-the-pi-ai-backed-multi-provider-adapter-for-users-and-maintainers-routing-the-harness-llm-service-through-pi-ai-catalogs-and-hand-declared-gateways-kind-package-reference:
++  en: dcf956ff411e3b87
++  zh: d1a9ab1dc7cfaeaa
+ /deepseek-ai-dsh-llm-pi-ai:
+   en: 33763dd0a848143d
+   zh: 82743942bc6df660
+@@ -12,8 +15,8 @@
+   en: ee82d88fee1332d6
+   zh: 3e66b494e4844f97
+ /deepseek-ai-dsh-llm-pi-ai/table-of-contents:
+-  en: d152484eb41ac6b4
+-  zh: 09388d293f9be9cb
++  en: eb6ed279e78f8b65
++  zh: 5583226de8ecca29
+ /deepseek-ai-dsh-llm-pi-ai/use-this-package:
+   en: 86cf1940fb8bb1dc
+   zh: 862c10b2ca45a893
+@@ -21,8 +24,11 @@
+   en: f3b761c7c7ecb82f
+   zh: e10d999aa348ef86
+ /deepseek-ai-dsh-llm-pi-ai/use-this-package/configure-provider-routes:
+-  en: c5d28300fa2cfc6f
+-  zh: c162855dcb54b65b
++  en: 9461fcd075eaddd8
++  zh: ecf03306aaf2025c
++/deepseek-ai-dsh-llm-pi-ai/use-this-package/openrouter-service-tiers:
++  en: 825c074e7fb495a6
++  zh: 5958d0cfb347b994
+ /deepseek-ai-dsh-llm-pi-ai/use-this-package/sign-in-to-a-provider:
+   en: c36f66438638ae08
+   zh: 066a2fc4cb97c86f
+@@ -42,14 +48,14 @@
+   en: 65bcc3b0db3f98e5
+   zh: 3c994e74894bea52
+ /deepseek-ai-dsh-llm-pi-ai/understand-the-implementation:
+-  en: 1598ac8a8bb9b6bf
+-  zh: fdd089c5ae7722cd
++  en: e41b29cb816ec09f
++  zh: 5b68b5829dc6c626
+ /deepseek-ai-dsh-llm-pi-ai/understand-the-implementation/design-philosophy:
+   en: 280416de410744bb
+   zh: 64cbfc0902e3f436
+ /deepseek-ai-dsh-llm-pi-ai/understand-the-implementation/source-map:
+-  en: 20afee7bbfb332ca
+-  zh: b080cf4e97094366
++  en: 144f162cddd61198
++  zh: 08a4d8dce1cbec94
+ /deepseek-ai-dsh-llm-pi-ai/understand-the-implementation/registration-and-directory:
+   en: 4da379c9be65c18a
+   zh: fd305d4bd3dfa452
+@@ -57,8 +63,8 @@
+   en: 36e0c59a0f9f5980
+   zh: 90a62c4a9cd23429
+ /deepseek-ai-dsh-llm-pi-ai/further-exploration:
+-  en: a2a2ccdeae59d408
+-  zh: c47ee091aa90ad91
++  en: 519219e0bb2d9bd7
++  zh: 173c269663118e9a
+ /deepseek-ai-dsh-llm-pi-ai/model-experience:
+   en: 215e7ba838619b7b
+   zh: a311da3843709f90
+@@ -87,8 +93,8 @@
+   en: b6bd570c0159ba08
+   zh: 7d2d91eea6a8d830
+ /deepseek-ai-dsh-llm-pi-ai/known-limitations-and-deferred-work:
+-  en: bb240ee5dd3f81c7
+-  zh: 884506a36f4aac62
++  en: 75aea95f67ded348
++  zh: 82d830093fef8263
+ /deepseek-ai-dsh-llm-pi-ai/known-limitations-and-deferred-work/dev-note:
+-  en: 3678dd0f6642c2a5
+-  zh: 75cbdd064cc64282
++  en: 378839c3c86d85e9
++  zh: 7a95c6a2cb0e61f5
+diff --git a/packages/llm/llm-pi-ai/README.md b/packages/llm/llm-pi-ai/README.md
+index ea0adbe524..01e37b1bb6 100644
+--- a/packages/llm/llm-pi-ai/README.md
++++ b/packages/llm/llm-pi-ai/README.md
+@@ -90,6 +90,12 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
+ 
+ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-llm-pi-ai) is the exhaustive source for every accepted field and its JSDoc.
+ 
++### OpenRouter service tiers
++
++Only the native `openrouter` route accepts `serviceTier` (`default`, `flex`, `priority`, `fast`, `ultrafast`, or null) and `modelServiceTiers` (`[{ model, tier }]`, with the same wire values plus `omit`). Exact model overrides win over the global tier; null suppresses the global value without suppressing explicit model overrides. Unsetting a field restores its composition base; an empty override array suppresses an inherited array. Unknown or duplicate override ids are refused on writes; stored obsolete ids remain visible as catalog diagnostics.
++
++The adapter captures the effective tier with the prepared profile and sets only top-level `service_tier` through pi-ai's payload callback. No hook is added when no tier applies. This preserves the catalog, authentication, headers, reasoning, attachments, tools, replay, and retry policy. Tier edits do not re-register the adapter. Chat Completions, Responses, and Anthropic Messages accept the field; an explicit tier on another protocol fails before credentials or network access. See [OpenRouter service tiers](https://openrouter.ai/docs/guides/features/service-tiers); requested tier is not a billing guarantee.
++
+ ### Sign in to a provider
+ 
+ A provider pi-ai ships a login for can be signed into through the harness authorization seam: the flow offers OAuth or an interactive key prompt (a key is typed into pi-ai's own login prompt, not into the settings form), and the resulting credential is stored in the harness credential store at `llm-pi-ai/<provider id>`. The stored sign-in authenticates its route beneath any `apiKeyEnv` override and refreshes itself under the store's cross-process lock; signing out deletes the stored record. A hand-declared route key outside the record grammar — a lowercase hyphenated identifier — cannot be signed into, because a record write for it refuses with `LlmError('UNSTORABLE_PROVIDER_ID')`; such a route authenticates through `apiKeyEnv` or ambient provider settings instead.
+diff --git a/packages/llm/llm-pi-ai/README.zh.md b/packages/llm/llm-pi-ai/README.zh.md
+index 8a72e3867b..75e8a4b8de 100644
+--- a/packages/llm/llm-pi-ai/README.zh.md
++++ b/packages/llm/llm-pi-ai/README.zh.md
+@@ -90,6 +90,12 @@ kind: "package-reference"
+ 
+ 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-llm-pi-ai)是每个受支持字段及其 JSDoc 的穷尽式真源。
+ 
++### OpenRouter 服务档位
++
++仅原生 `openrouter` 路由接受 `serviceTier`（`default`、`flex`、`priority`、`fast`、`ultrafast` 或 null）和 `modelServiceTiers`（`[{ model, tier }]`，档位另允许 `omit`）。精确模型覆盖优先于全局档位；null 屏蔽全局值，但不屏蔽显式模型覆盖。清除字段恢复组合底层继承；空覆盖数组屏蔽继承数组。写入时拒绝未知或重复的模型 ID；存量失效 ID 保留为目录诊断。
++
++适配器把有效档位与已准备 profile 一起捕获，只经 pi-ai payload 回调设置顶层 `service_tier`。无有效档位时不加 hook。模型目录、认证、headers、reasoning、附件、工具、replay 和重试策略保持原生行为；档位更新不重注册 adapter。Chat Completions、Responses 和 Anthropic Messages 支持此字段；其他协议遇到显式档位时，在解析凭据或访问网络前明确失败。参见 [OpenRouter 服务档位](https://openrouter.ai/docs/guides/features/service-tiers)；请求档位不是计费保证。
++
+ ### 登录提供方
+ 
+ pi-ai 提供登录的提供方可以通过 harness 授权 seam 登录：流程提供 OAuth 或交互式密钥提示（密钥键入 pi-ai 自己的登录提示，而非设置表单），得到的凭据存储在 harness 凭据存储的 `llm-pi-ai/<provider id>` 记录中。存储的登录在其路由的 `apiKeyEnv` 覆盖之下完成认证，并在存储的跨进程锁下自行刷新；退出登录即删除存储记录。落在记录文法之外——小写连字符标识符——的手工声明路由键无法登录，因为对它的记录写入会以 `LlmError('UNSTORABLE_PROVIDER_ID')` 拒绝；这类路由改用 `apiKeyEnv` 或提供方 ambient 设置认证。
+diff --git a/packages/llm/llm-pi-ai/src/adapter.ts b/packages/llm/llm-pi-ai/src/adapter.ts
+index de9f3e0e42..c3a1640b96 100644
+--- a/packages/llm/llm-pi-ai/src/adapter.ts
++++ b/packages/llm/llm-pi-ai/src/adapter.ts
+@@ -61,6 +61,7 @@ import type { ResolvedPiAiProviderProfile } from './config.ts'
+ import { toPiContext } from './context.ts'
+ import { createModels, getSupportedThinkingLevels } from './models.ts'
+ import { toStreamChunks } from './stream.ts'
++import { openRouterTierFor, supportsOpenRouterTier } from './service-tier.ts'
+ 
+ /** One resolution's frozen view: the profiles and the collection built from them. */
+ interface PiAiSnapshot {
+@@ -341,6 +342,10 @@ export class PiAiAdapter extends LlmAdapter {
+     // the one it started with and the next call picks up the new one.
+     const profile = this.profileOf(snapshot, options.provider)
+     const model = this.modelOf(snapshot, options.provider, options.model)
++    const serviceTier = options.provider === 'openrouter' ? openRouterTierFor(profile, model.id) : undefined
++    if (serviceTier !== undefined && !supportsOpenRouterTier(model.api)) {
++      throw new LlmError(`OpenRouter service tier is not supported for protocol "${model.api}"`, 'UNSUPPORTED_OPTION')
++    }
+     const reasoning = resolveReasoningLevel(
+       model,
+       options.reasoningEffort ?? profile.reasoning,
+@@ -379,6 +384,12 @@ export class PiAiAdapter extends LlmAdapter {
+         }, onReplayDegrade)
+       const events = snapshot.models.streamSimple(model, context, {
+         ...profileOptions(profile, reasoning, apiKey),
++        ...serviceTier === undefined ? {} : { onPayload: (payload: unknown) => {
++          if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
++            throw new LlmError('OpenRouter service tier requires an object payload', 'UNSUPPORTED_OPTION')
++          }
++          Object.assign(payload, { service_tier: serviceTier })
++        } },
+         ...options.temperature === undefined ? {} : { temperature: options.temperature },
+         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
+         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
+diff --git a/packages/llm/llm-pi-ai/src/config.ts b/packages/llm/llm-pi-ai/src/config.ts
+index b07cd57bfb..7a98566479 100644
+--- a/packages/llm/llm-pi-ai/src/config.ts
++++ b/packages/llm/llm-pi-ai/src/config.ts
+@@ -42,6 +42,8 @@ import type {
+   RouteCatalog,
+ } from './catalog.ts'
+ import { buildProvider, supportedProtocols } from './provider.ts'
++import { OPENROUTER_SERVICE_TIERS } from './service-tier.ts'
++import type { OpenRouterServiceTier, OpenRouterModelServiceTier } from './service-tier.ts'
+ 
+ /** Default maximum idle interval while an adapter stream read is outstanding. */
+ export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
+@@ -90,6 +92,10 @@ export type {
+ 
+ /** Configuration for one pi-ai provider route; the `providers` dict key IS the route. */
+ export interface PiAiProviderProfile {
++  /** OpenRouter-only request tier; null explicitly suppresses an inherited global tier. */
++  serviceTier?: OpenRouterServiceTier | null
++  /** Exact model overrides take precedence over serviceTier; omit sends no tier for that model. */
++  modelServiceTiers?: OpenRouterModelServiceTier[]
+   /** Credential reference (environment-variable name) resolved per request through `ctx.credentials`. */
+   apiKeyEnv?: string
+   /** Name shown by configuration surfaces; defaults to the route key. */
+@@ -324,6 +330,11 @@ const modelProfile: z<PiAiModelProfile> = z.object({
+ const modelOverride: z<PiAiModelOverride> = z.object(modelFields)
+ 
+ const profile = z.object({
++  serviceTier: z.union([...OPENROUTER_SERVICE_TIERS, z.const(null)]),
++  modelServiceTiers: z.array(z.object({
++    model: z.string().required(),
++    tier: z.union([...OPENROUTER_SERVICE_TIERS, 'omit']).required(),
++  })),
+   apiKeyEnv: z.string().role('credential-ref'),
+   displayName: z.string(),
+   api: z.union(supportedProtocols()),
+@@ -426,6 +437,22 @@ export function resolveProfiles(
+       throw new Error(`llm-pi-ai: provider "${provider}" has an empty displayName`)
+     }
+     assertValidHeaders(provider, source.headers)
++    if (provider !== 'openrouter' && (source.serviceTier !== undefined || (source.modelServiceTiers?.length ?? 0) > 0)) {
++      throw new Error(`llm-pi-ai: provider "${provider}" serviceTier and modelServiceTiers require the native openrouter route`)
++    }
++    if (source.serviceTier !== undefined && source.serviceTier !== null && !OPENROUTER_SERVICE_TIERS.includes(source.serviceTier)) {
++      throw new Error('llm-pi-ai: openrouter serviceTier is not supported')
++    }
++    const tierModels = new Set<string>()
++    for (const entry of source.modelServiceTiers ?? []) {
++      if (!entry.model.trim() || tierModels.has(entry.model)) {
++        throw new Error('llm-pi-ai: modelServiceTiers requires nonempty, unique model ids')
++      }
++      if (entry.tier !== 'omit' && !OPENROUTER_SERVICE_TIERS.includes(entry.tier)) {
++        throw new Error(`llm-pi-ai: modelServiceTiers for "${entry.model}" has an unsupported tier`)
++      }
++      tierModels.add(entry.model)
++    }
+     const streamIdleTimeoutMs = source.streamIdleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS
+     if (!Number.isFinite(streamIdleTimeoutMs)
+       || streamIdleTimeoutMs <= 0
+@@ -462,6 +489,7 @@ export function resolveProfiles(
+     let catalog: RouteCatalog | undefined
+     let piProvider: Provider | undefined
+     let catalogError: string | undefined
++    let modelErrors = new Map<string, string>()
+     try {
+       catalog = resolveRouteModels({
+         provider,
+@@ -475,6 +503,14 @@ export function resolveProfiles(
+         defaultMaxTokens: source.defaultMaxTokens ?? DEFAULT_MAX_TOKENS,
+       }, validation)
+       catalogError = catalog.modelErrors.values().next().value
++      modelErrors = new Map(catalog.modelErrors)
++      for (const model of tierModels) {
++        if (catalog.models.some(entry => entry.id === model) && !catalog.modelErrors.has(model)) continue
++        const message = `llm-pi-ai: provider "${provider}" modelServiceTiers names unserviceable model "${model}"`
++        if (validation === 'strict') throw new PiAiCatalogError(message)
++        modelErrors.set(model, message)
++        catalogError ??= message
++      }
+       piProvider = buildProvider({
+         provider,
+         displayName,
+@@ -500,8 +536,9 @@ export function resolveProfiles(
+       retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
+       ...rest.headers === undefined ? {} : { headers: { ...rest.headers } },
+       ...rest.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...rest.thinkingBudgets } },
++      ...rest.modelServiceTiers === undefined ? {} : { modelServiceTiers: rest.modelServiceTiers.map(entry => ({ ...entry })) },
+       configuredMaxTokens: catalog?.configuredMaxTokens ?? new Map(),
+-      modelErrors: catalog?.modelErrors ?? new Map(),
++      modelErrors,
+       ...piProvider === undefined ? {} : { piProvider },
+       ...catalogError === undefined ? {} : { catalogError },
+     })
+diff --git a/packages/llm/llm-pi-ai/src/index.ts b/packages/llm/llm-pi-ai/src/index.ts
+index 389acba7cc..6cebb85021 100644
+--- a/packages/llm/llm-pi-ai/src/index.ts
++++ b/packages/llm/llm-pi-ai/src/index.ts
+@@ -89,6 +89,8 @@ export type {
+ } from './config.ts'
+ export { recordKeyFor } from './auth.ts'
+ export { supportedProtocols } from './provider.ts'
++export { OPENROUTER_SERVICE_TIERS } from './service-tier.ts'
++export type { OpenRouterServiceTier, OpenRouterModelServiceTier } from './service-tier.ts'
+ 
+ export const name = 'llm-pi-ai'
+ export const inject = ['llm']
+diff --git a/packages/llm/llm-pi-ai/tests/adapter.spec.ts b/packages/llm/llm-pi-ai/tests/adapter.spec.ts
+index d894a1012e..1a3064484c 100644
+--- a/packages/llm/llm-pi-ai/tests/adapter.spec.ts
++++ b/packages/llm/llm-pi-ai/tests/adapter.spec.ts
+@@ -1058,3 +1058,54 @@ it.each([
+   })
+   expect(await adapter.listModels('deepseek')).not.toHaveLength(0)
+ })
++
++
++describe('native OpenRouter tier dispatch', () => {
++  const chat = getBuiltinModels('openrouter').find(model => model.api === 'openai-completions')!
++  it('changes only the top-level tier, with model overrides and prepared snapshots', async () => {
++    const server = await mockServer(Array.from({ length: 5 }, () => ({ events: textEvents })))
++    let profiles = resolveProfiles({ openrouter: { baseURL: server.url, headers: { 'X-Test': 'unchanged' } } })
++    const adapter = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: () => Promise.resolve('test-key'), auth: memoryAuth() })
++    const options = { provider: 'openrouter', model: chat.id, messages: [] }
++    const drain = async (stream: AsyncIterable<unknown>) => { for await (const _ of stream) { /* consume native chunks */ } }
++    await drain(adapter.stream(options))
++    profiles = resolveProfiles({ openrouter: { baseURL: server.url, headers: { 'X-Test': 'unchanged' }, serviceTier: 'flex' } })
++    const prepared = await adapter.prepareCall('openrouter', chat.id)
++    profiles = resolveProfiles({ openrouter: { baseURL: server.url, headers: { 'X-Test': 'unchanged' }, serviceTier: 'priority' } })
++    await drain(prepared.stream(options))
++    await drain(adapter.stream(options))
++    profiles = resolveProfiles({ openrouter: { baseURL: server.url, serviceTier: 'flex', modelServiceTiers: [{ model: chat.id, tier: 'omit' }] } })
++    await drain(adapter.stream(options))
++    profiles = resolveProfiles({ openrouter: { baseURL: server.url, serviceTier: null, modelServiceTiers: [{ model: chat.id, tier: 'fast' }] } })
++    await drain(adapter.stream(options))
++    expect(server.requests.map(body => (body as { service_tier?: string }).service_tier)).toEqual([undefined, 'flex', 'priority', undefined, 'fast'])
++    expect(server.requests[1]).toEqual({ ...server.requests[0] as object, service_tier: 'flex' })
++    await expect(`${JSON.stringify({ baseline: server.requests[0], flex: server.requests[1] }, null, 2)}\n`)
++      .toMatchFileSnapshot('./fixtures/openrouter-tier.request.json')
++    expect(server.headers[1]).toEqual({ ...server.headers[0], 'content-length': server.headers[1]!['content-length'] })
++  })
++  it('injects tiers into native Anthropic Messages without narrowing the catalog', async () => {
++    const server = await mockServer([{ status: 503, body: '{"error":{"message":"unavailable"}}' }])
++    const model = getBuiltinModels('openrouter').find(entry => entry.api === 'anthropic-messages')!
++    const adapter = adapterOf({ openrouter: { baseURL: server.url, serviceTier: 'flex' } })
++    for await (const _ of adapter.stream({ provider: 'openrouter', model: model.id, messages: [] })) { /* consume error */ }
++    expect(server.paths[0]).toContain('/messages')
++    expect(server.requests[0]).toMatchObject({ service_tier: 'flex', model: model.id })
++  })
++  it('injects tiers into the native Responses protocol selected by user configuration', async () => {
++    const server = await mockServer([{ status: 503, body: '{"error":{"message":"unavailable"}}' }])
++    const adapter = adapterOf({ openrouter: { api: 'openai-responses', models: [{ id: chat.id }], baseURL: server.url, serviceTier: 'priority' } })
++    for await (const _ of adapter.stream({ provider: 'openrouter', model: chat.id, messages: [] })) { /* consume error */ }
++    expect(server.paths[0]).toContain('/responses')
++    expect(server.requests[0]).toMatchObject({ service_tier: 'priority', model: chat.id })
++  })
++  it('refuses an unsupported configured protocol before credentials or network', async () => {
++    const credentials = vi.fn(() => Promise.resolve('test-key'))
++    const adapter = new PiAiAdapter({
++      profiles: () => resolveProfiles({ openrouter: { api: 'google-generative-ai', baseURL: 'http://127.0.0.1:1', models: [{ id: chat.id }], serviceTier: 'flex' } }),
++      resolveApiKey: credentials, auth: memoryAuth(),
++    })
++    expect(() => adapter.stream({ provider: 'openrouter', model: chat.id, messages: [] })).toThrow('supported protocols')
++    expect(credentials).not.toHaveBeenCalled()
++  })
++})
+diff --git a/packages/llm/llm-pi-ai/tests/config.spec.ts b/packages/llm/llm-pi-ai/tests/config.spec.ts
+index fe667fe58d..ccb7af7ebd 100644
+--- a/packages/llm/llm-pi-ai/tests/config.spec.ts
++++ b/packages/llm/llm-pi-ai/tests/config.spec.ts
+@@ -1,3 +1,5 @@
++import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
++import { openRouterTierFor } from '../src/service-tier.ts'
+ import { describe, expect, it } from 'vitest'
+ import { assertServiceable, Config, resolveProfiles, type Options } from '../src/config.ts'
+ 
+@@ -107,3 +109,34 @@ describe('request image policy bounds', () => {
+     }).toThrow(message)
+   })
+ })
++
++
++describe('native OpenRouter service tiers', () => {
++  const id = getBuiltinModels('openrouter').find(model => model.api === 'openai-completions')!.id
++  it('keeps the full catalog and copies tier overrides into resolved profiles', () => {
++    const overrides = [{ model: id, tier: 'priority' as const }]
++    const profile = resolveProfiles({ openrouter: { serviceTier: null, modelServiceTiers: overrides } }).get('openrouter')!
++    expect(profile.piProvider!.getModels().map(model => model.id)).toEqual(getBuiltinModels('openrouter').map(model => model.id))
++    expect(profile.piProvider!.getModels().some(model => model.api === 'anthropic-messages')).toBe(true)
++    expect(openRouterTierFor(profile, id)).toBe('priority')
++    overrides[0]!.model = 'changed'
++    expect(profile.modelServiceTiers![0]!.model).toBe(id)
++    expect(openRouterTierFor({ serviceTier: 'flex', modelServiceTiers: [{ model: id, tier: 'omit' }] }, id)).toBeUndefined()
++    expect(openRouterTierFor({ serviceTier: null }, id)).toBeUndefined()
++    expect(openRouterTierFor({}, id)).toBeUndefined()
++  })
++  it('rejects invalid tiers, duplicate ids, and non-native routes', () => {
++    expect(() => Config({ providers: { openrouter: { serviceTier: 'auto' } } })).toThrow()
++    expect(() => resolveProfiles({ openrouter: { modelServiceTiers: [{ model: '', tier: 'flex' }] } })).toThrow('nonempty')
++    expect(() => resolveProfiles({ openrouter: { modelServiceTiers: [{ model: id, tier: 'flex' }, { model: id, tier: 'omit' }] } })).toThrow('unique')
++    expect(() => resolveProfiles({ deepseek: { serviceTier: 'flex' } })).toThrow('native openrouter')
++  })
++  it('refuses unknown overrides on writes and keeps stored failures visible', () => {
++    const options = { openrouter: { modelServiceTiers: [{ model: 'removed-model', tier: 'flex' as const }] } }
++    expect(() => resolveProfiles(options)).toThrow('unserviceable model')
++    const stored = resolveProfiles(options, 'deferred').get('openrouter')!
++    expect(stored.catalogError).toContain('removed-model')
++    expect(stored.modelErrors.get('removed-model')).toContain('modelServiceTiers')
++    expect(stored.piProvider!.getModels()).toHaveLength(getBuiltinModels('openrouter').length)
++  })
++})
+diff --git a/packages/llm/llm-pi-ai/tests/dynamic-config.spec.ts b/packages/llm/llm-pi-ai/tests/dynamic-config.spec.ts
+index ae99592020..294eb5faba 100644
+--- a/packages/llm/llm-pi-ai/tests/dynamic-config.spec.ts
++++ b/packages/llm/llm-pi-ai/tests/dynamic-config.spec.ts
+@@ -310,3 +310,28 @@ describe('request-level dynamic profiles', () => {
+     expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(before)
+   })
+ })
++
++
++describe('OpenRouter volatile tier settings', () => {
++  it('retains the native owner and a prepared tier across a Loader update', async () => {
++    vi.stubEnv('PI_DYNAMIC_KEY', '')
++    const dir = await home()
++    await writeFile(join(dir, '.credentials.yaml'), 'version: 1\nrefs:\n  PI_DYNAMIC_KEY: fake-key\n', { mode: 0o600 })
++    const server = await mockServer([{ events: textEvents }, { events: textEvents }])
++    const ctx = await boot(dir, { providers: { openrouter: { apiKeyEnv: 'PI_DYNAMIC_KEY', baseURL: server.url, serviceTier: 'flex' } } })
++    const models = await ctx.llm.listModels('openrouter')
++    const id = getBuiltinModels('openrouter').find(model => model.api === 'openai-completions')!.id
++    const prepared = await ctx.llm.prepareCall({ provider: 'openrouter', model: id })
++    const owner = configurations.get(ctx)!.entry.fiber
++    const updates = vi.fn()
++    ctx.on('llm/adapters-updated', updates)
++    await configurations.get(ctx)!.update({ providers: { openrouter: { serviceTier: 'priority' } } })
++    expect(configurations.get(ctx)!.entry.fiber).toBe(owner)
++    expect(updates).not.toHaveBeenCalled()
++    for await (const _ of prepared.stream({ ...prepared.config, messages: [] })) { /* consume */ }
++    await assemble(ctx, { provider: 'openrouter', model: id, messages: [] })
++    expect(server.requests).toMatchObject([{ service_tier: 'flex' }, { service_tier: 'priority' }])
++    expect(await ctx.llm.listModels('openrouter')).toEqual(models)
++    expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['openrouter'])
++  })
++})
+diff --git a/packages/llm/llm-pi-ai/tests/loader-composition.spec.ts b/packages/llm/llm-pi-ai/tests/loader-composition.spec.ts
+index 6beedfb3fb..49511123e7 100644
+--- a/packages/llm/llm-pi-ai/tests/loader-composition.spec.ts
++++ b/packages/llm/llm-pi-ai/tests/loader-composition.spec.ts
+@@ -1,3 +1,4 @@
++import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
+ /** Profile patch edits and credential updates reach the next real adapter request. */
+ 
+ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+@@ -268,3 +269,23 @@ describe('llm-pi-ai real dormant composition', () => {
+     })
+   })
+ })
++
++
++describe('OpenRouter tiers in a file-backed Loader composition', () => {
++  it('activates one native route from a profile patch and dispatches its tier', async () => {
++    vi.stubEnv('PI_COMPOSITION_KEY', '')
++    const server = await mockServer([{ events: textEvents }])
++    const { ctx, settingsPath } = await loadComposition()
++    await writeFile(settingsPath, [
++      '- id: llm-pi-ai', '  config:', '    providers:', '      openrouter:',
++      '        apiKeyEnv: PI_COMPOSITION_KEY', `        baseURL: ${server.url}`,
++      '        serviceTier: flex', '',
++    ].join('\n'))
++    await vi.waitFor(() => expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['openrouter']), { timeout: 5000 })
++    const model = getBuiltinModels('openrouter').find(entry => entry.api === 'openai-completions')!.id
++    const result = await assemble(ctx, { provider: 'openrouter', model, messages: [] })
++    expect(result.message.content).toEqual([{ type: 'text', text: 'hello' }])
++    expect(server.requests[0]).toMatchObject({ service_tier: 'flex' })
++    expect((await ctx.llm.listModels('openrouter')).length).toBe(getBuiltinModels('openrouter').length)
++  })
++})
+diff --git a/packages/llm/llm-pi-ai/src/service-tier.ts b/packages/llm/llm-pi-ai/src/service-tier.ts
+new file mode 100644
+--- /dev/null
++++ b/packages/llm/llm-pi-ai/src/service-tier.ts
+@@ -0,0 +1,36 @@
++/** OpenRouter request-tier selection; descriptors and authentication stay unchanged. */
++import type { PiAiProviderProfile } from './config.ts'
++
++/** Wire values accepted by OpenRouter Chat Completions, Responses, and Messages. */
++export const OPENROUTER_SERVICE_TIERS = ['default', 'flex', 'priority', 'fast', 'ultrafast'] as const
++
++/** One OpenRouter wire tier; `omit` and null are configuration-only choices. */
++export type OpenRouterServiceTier = typeof OPENROUTER_SERVICE_TIERS[number]
++
++/** Exact model-id override; omission suppresses the global tier. */
++export interface OpenRouterModelServiceTier {
++  /** Model id in the route's resolved catalog. */
++  model: string
++  /** Wire tier, or explicit suppression of the global value. */
++  tier: OpenRouterServiceTier | 'omit'
++}
++
++/**
++ * Select a tier from one captured profile, never from live settings.
++ * @param profile - the request's resolved profile.
++ * @param model - exact model id.
++ * @returns the wire tier, or undefined when no tier should be sent.
++ */
++export function openRouterTierFor(profile: Pick<PiAiProviderProfile, 'serviceTier' | 'modelServiceTiers'>, model: string): OpenRouterServiceTier | undefined {
++  const tier = profile.modelServiceTiers?.find(entry => entry.model === model)?.tier ?? profile.serviceTier
++  return tier === 'omit' || tier === null ? undefined : tier
++}
++
++/**
++ * Whether an OpenRouter API accepts a top-level service_tier.
++ * @param api - the resolved model protocol.
++ * @returns true for the three documented OpenRouter HTTP APIs.
++ */
++export function supportsOpenRouterTier(api: string): boolean {
++  return ['openai-completions', 'openai-responses', 'anthropic-messages'].includes(api)
++}
+diff --git a/packages/llm/llm-pi-ai/tests/fixtures/openrouter-tier.request.json b/packages/llm/llm-pi-ai/tests/fixtures/openrouter-tier.request.json
+new file mode 100644
+--- /dev/null
++++ b/packages/llm/llm-pi-ai/tests/fixtures/openrouter-tier.request.json
+@@ -0,0 +1,23 @@
++{
++  "baseline": {
++    "model": "aion-labs/aion-2.0",
++    "messages": [],
++    "stream": true,
++    "stream_options": {
++      "include_usage": true
++    },
++    "store": false,
++    "max_completion_tokens": 32768
++  },
++  "flex": {
++    "model": "aion-labs/aion-2.0",
++    "messages": [],
++    "stream": true,
++    "stream_options": {
++      "include_usage": true
++    },
++    "store": false,
++    "max_completion_tokens": 32768,
++    "service_tier": "flex"
++  }
++}
