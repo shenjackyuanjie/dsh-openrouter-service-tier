@@ -1,19 +1,18 @@
 import type { Context } from '@deepseek-ai/cordis';
-import type Settings from '@deepseek-ai/dsh-settings';
 import type {} from '@deepseek-ai/cordis-plugin-loader';
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools';
 import { TIER_CHOICES } from './config.js';
 import { mutateTier, readTierState } from './tier-ops.js';
 
 /** UI、命令与 Agent 工具共用宿主 settings.mutate，没有第二套持久化路径。 */
-export function tierTool(settings: Settings, ns: string, knownModels: readonly string[]): ToolDefinition {
+export function tierTool(ctx: Context): ToolDefinition {
   return {
     name: 'openrouter_service_tier',
-    description: '读取或修改 OpenRouter Service Tier 插件的请求档位。改全局档位会影响当前 profile 所有会话，只对后续请求生效；带 model 时只覆盖该模型。不发送模型请求、不改凭据或 thinking。写入前先 get 取得 revision。',
+    description: '读取或修改 原生 OpenRouter 请求档位。改全局档位会影响当前 profile 所有会话，只对新准备请求生效；带 model 时只覆盖该模型。不发送模型请求、不改凭据或 thinking。写入前先 get 取得 revision。',
     parameters: {
       type: 'object',
       properties: {
-        action: { type: 'string', enum: ['get', 'set', 'reset'], description: 'get 读取当前全局档位与按模型覆盖；set 设置；reset 清除。' },
+        action: { type: 'string', enum: ['get', 'set', 'reset'], description: 'get 读取当前全局档位与按模型覆盖；set 设置；reset 恢复全局继承或删除模型有效覆盖（可能写入空数组屏蔽底层）。' },
         tier: { type: 'string', enum: [...TIER_CHOICES], description: '仅 set 使用；omit 表示不发送 service_tier 参数。priority/fast/ultrafast 可能提高费用。' },
         model: { type: 'string', description: '可选。给出模型 id 时只修改该模型的覆盖，不影响全局档位。' },
         expectedRevision: { type: 'integer', minimum: 0, description: 'set/reset 必填，使用最近 get 返回的 revision，防止覆盖他人的修改。' },
@@ -49,11 +48,11 @@ export function tierTool(settings: Settings, ns: string, knownModels: readonly s
         if (input.action === 'set' && !(TIER_CHOICES as readonly string[]).includes(String(input.tier))) throw new Error('不支持的请求档位');
         const tier = input.action === 'reset' ? 'inherit' as const : input.tier as typeof TIER_CHOICES[number];
         const change = typeof input.model === 'string' ? { kind: 'model' as const, model: input.model, tier } : { kind: 'global' as const, tier };
-        await mutateTier(settings, ns, change, Number(input.expectedRevision), knownModels);
+        await mutateTier(ctx, change, Number(input.expectedRevision));
       }
-      const state = readTierState(settings, ns);
+      const state = readTierState(ctx);
       return {
-        namespace: ns,
+        namespace: state.namespace,
         global: state.global ?? 'inherit',
         overrides: state.overrides.map((entry) => ({ model: entry.model, tier: entry.tier })),
         revision: state.revision,
@@ -63,13 +62,8 @@ export function tierTool(settings: Settings, ns: string, knownModels: readonly s
   };
 }
 
-export function registerTierSettings(ctx: Context, knownModels: readonly string[]): void {
-  const ns = ctx.fiber.entry?.options.id;
-  if (!ns) return;
-  ctx.inject(['settings'], (child) => {
-    child.effect(() => child.settings.configure({ auto: false }, ctx.fiber));
-  });
+export function registerTierSettings(ctx: Context): void {
   ctx.inject(['settings', 'tools'], (child) => {
-    child.effect(() => child.tools.register(tierTool(child.settings, ns, knownModels)));
+    child.effect(() => child.tools.register(tierTool(child)));
   });
 }

@@ -1,3 +1,5 @@
+import * as Native from '@deepseek-ai/dsh-llm-pi-ai';
+export { Native };
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { Context } from '@deepseek-ai/cordis';
@@ -6,7 +8,7 @@ import Loader from '@deepseek-ai/cordis-plugin-loader';
 import assert from 'node:assert/strict';
 
 export const MODEL = 'openai/gpt-6-luna';
-export const ROUTE = 'openrouter-tier';
+export const ROUTE = 'openrouter';
 export const messages = [{ role: 'user', content: [{ type: 'text', text: '离线测试' }] }];
 export const call = (extra = {}) => ({ provider: ROUTE, model: MODEL, messages, ...extra });
 export const collect = async (stream) => { const out = []; for await (const chunk of stream) out.push(chunk); return out; };
@@ -90,4 +92,16 @@ export async function assertActive(root, id = 'tier-test') {
   assert.ok(fiber, 'Loader 必须创建 plugin fiber');
   await fiber.await();
   assert.equal(fiber.state, 2, '插件必须 ACTIVE，而不是仅 loader.await 返回');
+}
+
+
+export async function setupNative(t, config = {}) {
+  const fake = await fakeOpenRouter(); t.after(() => fake.close());
+  const host = await harness(); t.after(() => host.close());
+  const native = { providers: { openrouter: { apiKeyEnv: 'OPENROUTER_API_KEY', baseURL: fake.baseURL, serviceTier: 'flex', reasoning: 'high', ...config } } };
+  await host.activate([
+    { id: 'native-test', name: '@deepseek-ai/dsh-llm-pi-ai', config: native },
+    { id: 'tier-test', name: './lib/index.js', config: {} },
+  ]);
+  return { ...host, fake, config: native };
 }

@@ -3,27 +3,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import yaml from 'js-yaml';
 import { LlmAdapter } from '@deepseek-ai/dsh-llm';
-import { assertActive, call, collect, fakeOpenRouter, finish, harness, MODEL, ROUTE } from './fixtures.mjs';
+import { assertActive, call, collect, fakeOpenRouter, finish, harness, MODEL, ROUTE, setupNative, Native } from './fixtures.mjs';
 
-async function setup(t, config = {}) {
-  const fake = await fakeOpenRouter();
-  t.after(() => fake.close());
-  const host = await harness();
-  t.after(() => host.close());
-  // 从实际 bundle YAML 取得配置；模型/thinking 仅在测试夹具中显式固定。
-  const patch = yaml.load(await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8'));
-  const row = patch[0].insert[0];
-  row.id = 'tier-test';
-  row.name = './lib/index.js';
-  row.config = { ...row.config, models: [MODEL], reasoning: 'high', baseURL: fake.baseURL, ...config };
-  await host.activate([row]);
-  return { ...host, fake, config: row.config };
-}
+const setup = setupNative;
 
 test('真实 Loader + LLM + PiAiAdapter：flex 与 high thinking、文本和 usage 共存', async (t) => {
   const { root, fake, references } = await setup(t);
   assert.deepEqual(root.llm.listProviders().map((item) => item.id), [ROUTE]);
-  assert.equal((await root.llm.listModels(ROUTE))[0].id, MODEL);
+  assert.ok((await root.llm.listModels(ROUTE)).some(model => model.id === MODEL));
+  assert.ok((await root.llm.listModels(ROUTE)).length > 1);
   const resolved = await root.llm.resolveCallConfig({ provider: ROUTE, model: MODEL });
   assert.equal(resolved.reasoningEffort, 'high');
   const chunks = await collect(root.llm.stream(call()));
@@ -88,47 +76,30 @@ test('未知模型和不支持 stop 在发送前失败', async (t) => {
   assert.equal(fake.requests.length, 0);
 });
 
-test('普通配置更新：prepareCall 绑定旧快照，新请求使用新 tier，无重复路由', async (t) => {
+test('原生 volatile 更新保持 owner，已准备请求保留旧档位', async (t) => {
   const { root, fake, config } = await setup(t);
   const prepared = await root.llm.prepareCall({ provider: ROUTE, model: MODEL });
-  await root.loader.update('tier-test', { config: { ...config, serviceTier: 'priority' } });
-  await assertActive(root);
-  assert.equal(root.llm.listProviders().length, 1);
+  const owner = root.loader.resolve('native-test').fiber;
+  await root.loader.update('native-test', { config: { providers: { openrouter: { ...config.providers.openrouter, serviceTier: 'priority' } } } });
+  await assertActive(root, 'native-test');
+  assert.equal(root.loader.resolve('native-test').fiber, owner);
   await collect(prepared.stream(call(prepared.config)));
   await collect(root.llm.stream(call()));
-  assert.deepEqual(fake.requests.map((request) => request.body.service_tier), ['flex', 'priority']);
-  await root.loader.update('tier-test', { config: { ...config, serviceTier: undefined } });
-  await assertActive(root);
-  await collect(root.llm.stream(call()));
-  assert.equal('service_tier' in fake.requests[2].body, false);
+  assert.deepEqual(fake.requests.map(request => request.body.service_tier), ['flex', 'priority']);
 });
 
-test('非法配置在卸载前拒绝，运行态保留旧路由且可修复', async (t) => {
-  const { root, fake, config } = await setup(t);
-  const original = root.loader.resolve('tier-test').fiber;
-  for (const invalid of [{ models: ['unknown/offline'] }, { baseURL: 'https://fake:secret@example.com' }, { provider: 'openrouter' }]) {
-    await assert.rejects(root.loader.update('tier-test', { config: { ...config, ...invalid } }));
-    assert.equal(root.loader.resolve('tier-test').fiber, original);
-    assert.equal(root.llm.listProviders().length, 1);
-    assert.equal(finish(await collect(root.llm.stream(call()))).reason.kind, 'stop');
-  }
-  assert.ok(fake.requests.every((request) => request.body.service_tier === 'flex'));
-  await root.loader.update('tier-test', { config: { ...config, serviceTier: 'priority' } });
-  await assertActive(root);
-  await collect(root.llm.stream(call()));
-  assert.equal(fake.requests.at(-1).body.service_tier, 'priority');
-});
-
-test('卸载不改变已准备请求，新调用不再拥有路由', async (t) => {
+test('控制插件停用不删模型、不清档位，不中断已准备或新的请求', async (t) => {
   const { root, fake } = await setup(t);
+  const before = await root.llm.listModels(ROUTE);
+  const owner = root.loader.resolve('native-test').fiber;
   const prepared = await root.llm.prepareCall({ provider: ROUTE, model: MODEL });
   const mounted = root.loader.resolve('tier-test').fiber;
-  root.loader.remove('tier-test');
-  await mounted.dispose();
-  assert.equal(root.llm.listProviders().length, 0);
-  assert.equal(finish(await collect(prepared.stream(call(prepared.config)))).reason.kind, 'stop');
-  assert.equal(fake.requests[0].body.service_tier, 'flex');
-  assert.equal(finish(await collect(root.llm.stream(call()))).reason.failure.code, 'NO_ADAPTER');
+  root.loader.remove('tier-test'); await mounted.dispose();
+  assert.equal(root.loader.resolve('native-test').fiber, owner);
+  assert.deepEqual(await root.llm.listModels(ROUTE), before);
+  await collect(prepared.stream(call(prepared.config)));
+  await collect(root.llm.stream(call()));
+  assert.deepEqual(fake.requests.map(request => request.body.service_tier), ['flex', 'flex']);
 });
 
 test('取消和 idle timeout 复用 adapter 行为', async (t) => {
@@ -144,32 +115,7 @@ test('取消和 idle timeout 复用 adapter 行为', async (t) => {
   assert.equal(timedout.reason.failure.code, 'TIMEOUT');
 });
 
-test('停用、再启用、卸载都通过 Cordis 清理路由', async (t) => {
-  const { root } = await setup(t);
-  const fiber = root.loader.resolve('tier-test').fiber;
-  await root.loader.update('tier-test', { disabled: true });
-  await fiber.dispose();
-  assert.equal(root.llm.listProviders().length, 0);
-  await root.loader.update('tier-test', { disabled: false });
-  await assertActive(root);
-  assert.equal(root.llm.listProviders().length, 1);
-  const mounted = root.loader.resolve('tier-test').fiber;
-  root.loader.remove('tier-test');
-  await mounted.dispose();
-  assert.equal(root.llm.listProviders().length, 0);
-});
-
-test('路由冲突拒绝插件激活，不污染已有 adapter', async (t) => {
-  const fake = await fakeOpenRouter(); t.after(() => fake.close());
-  const { root, close } = await harness(); t.after(close);
-  const owner = new LlmAdapter();
-  root.llm.registerAdapter([ROUTE], owner);
-  await root.loader.root.update([{ id: 'tier-test', name: './lib/index.js', config: { baseURL: fake.baseURL } }]);
-  await root.loader.await();
-  const fiber = root.loader.resolve('tier-test').fiber;
-  assert.ok(fiber);
-  await assert.rejects(fiber.await(), (error) => error.code === 'DUPLICATE_ADAPTER');
-  assert.notEqual(fiber.state, 2);
-  assert.equal(root.llm.listProviders().length, 1);
-  assert.equal(fake.requests.length, 0);
+test('bundle 仅插控制器，不提供档位默认值或第二套路由', async () => {
+  const patch = yaml.load(await readFile(new URL('../cordis.patch.yml', import.meta.url), 'utf8'));
+  assert.deepEqual(patch, [{ insert: [{ id: 'openrouter-service-tier', name: 'dsh-openrouter-service-tier', config: {} }] }]);
 });

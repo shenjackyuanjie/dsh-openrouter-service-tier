@@ -1,0 +1,2 @@
+patchedDependencies:
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.0-rc.2': patches/@deepseek-ai__dsh-llm-pi-ai@0.2.0-rc.2.patch

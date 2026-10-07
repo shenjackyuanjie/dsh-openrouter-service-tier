@@ -19,18 +19,20 @@ for (const key of Object.keys(manifest.devDependencies)) {
 manifest.devDependencies['@deepseek-ai/cordis'] = '4.0.5-alpha.1';
 manifest.devDependencies['@deepseek-ai/cordis-plugin-loader'] = '1.0.6-alpha.1';
 manifest.devDependencies['@deepseek-ai/schemastery'] = '3.18.5-alpha.1';
+await writeFile(path.join(target, 'pnpm-workspace.yaml'), "patchedDependencies:\n  '@deepseek-ai/dsh-llm-pi-ai@0.2.1-alpha.1': ../../patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-alpha.1.patch\n");
 await writeFile(path.join(target, 'package.json'), JSON.stringify(manifest, null, 2) + '\n');
 for (const name of ['src', 'test']) await cp(path.join(project, name), path.join(target, name), { recursive: true });
-for (const name of ['tsconfig.json', 'cordis.patch.yml', 'client.js']) await cp(path.join(project, name), path.join(target, name));
+for (const name of ['tsconfig.json', 'cordis.patch.yml']) await cp(path.join(project, name), path.join(target, name));
 
 function run(args) {
-  console.log(`验证 alpha 独立组合：npm ${args.join(' ')}`);
+  const manager = args[0] === 'install' ? 'pnpm' : 'npm';
+  console.log(`验证 alpha 独立组合：${manager} ${args.join(' ')}`);
   // Windows 用 cmd 执行固定的 npm 参数，路径只作为 cwd，不拼接进 shell。
   const result = process.platform === 'win32'
-    ? spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `npm ${args.join(' ')}`], { cwd: target, stdio: 'inherit' })
-    : spawnSync('npm', args, { cwd: target, stdio: 'inherit' });
+    ? spawnSync(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `${manager} ${args.join(' ')}`], { cwd: target, stdio: 'inherit' })
+    : spawnSync(manager, args, { cwd: target, stdio: 'inherit' });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
-run(['install', '--ignore-scripts', '--cache', '.cache/npm']);
+run(['install', '--ignore-scripts']);
 run(['run', 'check']);
