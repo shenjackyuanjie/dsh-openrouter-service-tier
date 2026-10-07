@@ -34,6 +34,12 @@ pnpm exec vitest run packages/llm/llm-pi-ai/tests/config.spec.ts packages/llm/ll
 
 真实请求使用临时 headless overlay，不持久修改档位、默认模型或凭据。未查询费用或实际计费档位。本次测试 Web 进程已退出。
 
+## Registry 安装验证
+
+`@shenjackyuanjie/dsh-openrouter-service-tier@0.3.0` 已发布到 GitHub npm registry。认证下载后，实际 tarball 的 SHA-512 与 registry 的 `dist.integrity` 一致，manifest 和 bundle 使用相同的 scoped 包名。
+
+使用独立临时 `DSH_HOME` 执行 `dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.3.0 --ignore-scripts` 安装成功，没有修改用户实际 profile。scoped 包名适配后，两版插件的 19 项离线测试均重新通过。
+
 ## 已知验证限制
 
 以下会话快照**未通过**：
