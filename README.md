@@ -1,10 +1,10 @@
 # dsh-openrouter-service-tier
 
-`0.3.0`：控制 DeepSeek Harness **原生 `openrouter`** 请求档位，不注册独立 adapter 或第二套模型目录。thinking、认证、消息、工具、附件、replay、取消、超时与重试走宿主原生调用链。
+`0.3.1`：控制 DeepSeek Harness **原生 `openrouter`** 请求档位，不注册独立 adapter 或第二套模型目录。thinking、认证、消息、工具、附件、replay、取消、超时与重试走宿主原生调用链。
 
 ## 宿主要求
 
-支持 `0.2.0-rc.2` 与 `0.2.1-alpha.1`，两版均需对应的 `llm-pi-ai` 原生档位补丁。插件不是宿主升级器；未打补丁时工具和命令明确拒绝，不会假报配置成功。不能把 alpha 整包装进 rc.2。
+支持 `0.2.0-rc.2`、`0.2.1-alpha.1` 与 `0.2.1-rc.2`，每版均需对应的 `llm-pi-ai` 原生档位补丁。插件不是宿主升级器；未打补丁时工具和命令明确拒绝，不会假报配置成功。跨版本不能混装下载包。
 
 [`patches/`](./patches/) 提供固定版本的 package-manager 补丁。实际加载独立 npm 包的宿主可在所属 pnpm 项目的 `patchedDependencies` 中配置对应补丁，再运行 `pnpm install` 并重启。宿主若内联该包，必须修改对应版本源码并重新构建宿主；单独 patch 一个未加载的依赖无效。禁止手改 `node_modules` 或共享 store。
 
@@ -13,7 +13,7 @@ patchedDependencies:
   '@deepseek-ai/dsh-llm-pi-ai@0.2.0-rc.2': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.0-rc.2.patch
 ```
 
-使用 alpha 时改为 `0.2.1-alpha.1` 和对应文件。源码补丁及构建说明见 [补丁说明](./patches/README.md)，本机验收见 [原生方案验证](./validation/native-tier.md)。
+换版本时同时替换版本键和补丁文件：alpha 用 `0.2.1-alpha.1`，rc 用 `0.2.1-rc.2`。源码补丁及构建说明见 [补丁说明](./patches/README.md)，本机验收见 [原生方案验证](./validation/native-tier.md)。
 
 ## 使用
 
@@ -52,7 +52,7 @@ GitHub npm registry 安装公开包也需要认证，使用具备 `read:packages
 ```powershell
 npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
 npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
-dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.3.0 --ignore-scripts
+dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.3.1 --ignore-scripts
 ```
 
 登录时 Username 填 GitHub 用户名，Password 填 PAT。其他 scope 的依赖继续从原 npm registry 获取。参见 [GitHub npm registry 认证说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。
@@ -72,7 +72,7 @@ npm pack --ignore-scripts --pack-destination .cache
 构建产生 `lib/`，安装前必须构建。将 tarball 安装到原 profile，例如：
 
 ```powershell
-dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.3.0.tgz --ignore-scripts
+dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.3.1.tgz --ignore-scripts
 ```
 
 本地 tarball 安装不需要 GitHub registry 认证。
@@ -91,4 +91,4 @@ npm publish
 
 ## 验证
 
-`npm run check` 执行类型检查与离线 Loader、LLM、Settings 回归。`node scripts/test-alpha.mjs` 在 `.compat/alpha` 构造独立 alpha 组合并应用对应宿主补丁，不安装用户 profile。宿主相关测试、keyless snapshot、启动和真实请求的实际执行结果记录在 [原生方案验证](./validation/native-tier.md)。
+`npm run check` 执行类型检查与离线 Loader、LLM、Settings 回归。`node scripts/test-alpha.mjs` 在 `.compat/alpha` 构造独立 alpha 组合并应用对应宿主补丁，不安装用户 profile；`node scripts/test-alpha.mjs 0.2.1-rc.2` 用同一条流程验证 rc.2 组合。宿主相关测试、keyless snapshot、启动和真实请求的实际执行结果记录在 [原生方案验证](./validation/native-tier.md)。

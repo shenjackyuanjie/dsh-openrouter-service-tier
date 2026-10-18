@@ -1,19 +1,31 @@
 # 当前版本验证状态
 
-验证日期：2026-10-07。插件版本：`0.3.0`。支持宿主 `0.2.0-rc.2` 与 `0.2.1-alpha.1`，须应用各自匹配的原生宿主补丁。
+验证日期：2026-10-18。插件版本：`0.3.1`。支持宿主 `0.2.0-rc.2`、`0.2.1-alpha.1` 与 `0.2.1-rc.2`，须应用各自匹配的原生宿主补丁。
+
+## 兼容性检查
+
+对比 `0.2.0-rc.2` 与 `0.2.1-rc.2` 的 `dsh-commands`、`dsh-llm`、`dsh-settings`、`dsh-tools`、`cordis`、`schemastery`：类型声明为新增或注释变化，未出现插件所用 API 的破坏性变更。
+
+- `dsh-llm`：新增 `ConfigureCall`/`LlmCallControls`、`imageRequestTarget`、`LlmNativeAuth` 等；`listProviders`、`listConfigurableProviders`、`listModels` 与 `prepareCall` 旧调用形态仍成立。
+- `dsh-tools`：`ToolDefinition`/`ToolOutputDefinition` 未变；仅 `ToolPresentationMode` 去掉 `both`（插件不设置该模式），`meta` 语义扩展到嵌套调用。
+- `dsh-settings`、`cordis`、`schemastery`：插件使用的类型无变化；rc.2 运行时使用 `cordis 4.0.5` 与 `schemastery 3.18.5`。
+- 插件 `src/` 直接用 rc.2 类型声明 `tsc --noEmit` 通过（用 rc.2 独有的 `ConfigureCall` 反证解析来源）。
+
+peerDependencies 已包含三个宿主版本；peer 闸门用 semver（`includePrerelease: true`）对 `0.2.0-rc.2` 与 `0.2.1-rc.2` 两套运行时逐一校验通过。
 
 ## 离线检查
 
 | 检查 | 结果 |
 | --- | --- |
-| 插件 `npm run check` | 类型检查、构建、19 项测试通过 |
-| 插件 `node scripts/test-alpha.mjs` | alpha 独立依赖组合的类型检查、构建、19 项测试通过 |
-| 两版宿主 `pnpm exec tsc -b packages/llm/llm-pi-ai` | 通过 |
-| 两版宿主 config、adapter、dynamic-config、loader-composition 测试 | 各 89 项通过 |
-| 两版包内 keyless 请求快照 `openrouter-tier.request.json` | 通过；原生 baseline 与 flex body 只差顶层 `service_tier` |
-| 两版 source patch | 对应干净 tag 基线的应用检查、实际应用和反向校验通过 |
-| 两版 npm patch | 对应原始 npm 包的应用检查通过 |
-| 导出 JSDoc、相关源码 oxlint、双语 pairing、代码 diff 检查 | 通过 |
+| 插件 `npm run check`（0.2.0-rc.2 开发依赖） | 类型检查、构建、19 项测试通过 |
+| 插件 `node scripts/test-alpha.mjs`（alpha 组合） | 19 项测试通过 |
+| 插件 `node scripts/test-alpha.mjs 0.2.1-rc.2`（rc.2 组合） | 19 项测试通过 |
+| 宿主 `0.2.1-rc.2` `pnpm exec tsc -b packages/llm/llm-pi-ai` | 通过 |
+| 宿主 `0.2.1-rc.2` config、adapter、dynamic-config、loader-composition 测试 | 92 项通过 |
+| 宿主 `0.2.1-rc.2` 包内 keyless 请求快照 `openrouter-tier.request.json` | 用 rc.2 目录重新记录后通过 |
+| `0.2.1-rc.2` npm 补丁 | 原始 npm 包 `git apply --check` 通过 |
+| `0.2.1-rc.2` source patch | 干净 tag `dsh-v0.2.1-rc.2` 上正向应用与反向校验通过 |
+| `0.2.1-rc.2` 双语文档配对 | `verify-translation-pairing` 1014 对全部一致 |
 
 宿主相关测试命令：
 
@@ -23,29 +35,22 @@ pnpm exec vitest run packages/llm/llm-pi-ai/tests/config.spec.ts packages/llm/ll
 
 覆盖 Chat Completions、Responses、Anthropic Messages 顶层请求 body、thinking、工具调用与多轮 replay、凭据失败、取消、idle timeout、429/503 分类、prepare 快照、volatile 更新、插件停用、原生 revision 冲突、null/omit 优先级及数组继承。插件只写原生档位两字段，不注册 adapter，不读取凭据。
 
-## Web 与真实请求
+rc.2 起宿主每次请求会多次解析凭据，集成测试不再断言具体解析次数，只校验解析到的引用始终是原生环境变量引用。
 
-实际运行环境为 `0.2.0-rc.2`，应用对应独立 npm 包补丁并安装控制插件，没有混装 alpha 包。
+## 启动验证
 
-- `dsh web --no-open`：HTTP 200，客户端全部 ACTIVE，无 pageerror。
-- OpenRouter 仅使用原生 `llm-pi-ai` 路由，没有第二套模型目录。
-- 原生设置 schema 具备 `serviceTier`、`modelServiceTiers`；安装不默认写入 flex。
-- 原生 `openrouter` / `openai/gpt-6-luna`、flex、low thinking、512 输出上限、无自动重试：真实请求成功返回 **PONG**。
+- 用户 web profile（宿主 `0.2.0-rc.2`，未升级）：安装 `0.3.1` 后 `dsh web --no-open --port 0` 打印 `dsh web: http://127.0.0.1:<port>/?token=...`，随后关闭，进程退出。
+- 隔离 `DSH_HOME` + 隔离安装的 `@deepseek-ai/dsh@0.2.1-rc.2`：`dsh plugin --profile web add file:...0.3.1-native-final.tgz` 通过 peer 闸门，`dsh web --no-open --port 0` 打印同样的启动行，随后关闭。用户实际 `dsh` 安装保持 `0.2.0-rc.2`。
 
-真实请求使用临时 headless overlay，不持久修改档位、默认模型或凭据。未查询费用或实际计费档位。本次测试 Web 进程已退出。
-
-## Registry 安装验证
-
-`@shenjackyuanjie/dsh-openrouter-service-tier@0.3.0` 已发布到 GitHub npm registry。认证下载后，实际 tarball 的 SHA-512 与 registry 的 `dist.integrity` 一致，manifest 和 bundle 使用相同的 scoped 包名。
-
-使用独立临时 `DSH_HOME` 执行 `dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.3.0 --ignore-scripts` 安装成功，没有修改用户实际 profile。scoped 包名适配后，两版插件的 19 项离线测试均重新通过。
+真实 OpenRouter 付费请求本轮未重跑；档位注入路径由 rc.2 组合与宿主 92 项测试覆盖。
 
 ## 已知验证限制
 
-以下会话快照**未通过**：
+- 未在 `0.2.1-rc.2` 上执行完整 web profile 启动（需要把用户 profile 整体升级，本轮明确不改），只做了隔离 `DSH_HOME` 启动与离线组合加载。
+- 以下会话快照**未通过**，与宿主默认工具目录差异有关，本轮未修改 baseline：
 
 ```powershell
 pnpm exec vitest run --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts -t pi-ai-replay-metadata
 ```
 
-差异为已提交的默认 Bash 工具目录与 Windows 实际 Pwsh 工具目录的 header；未修改 baseline 或 normalizer。包内原生请求快照另行通过，不能代替该会话快照。未执行全量 Harness 测试；alpha 的真实 Web 启动和付费请求未实测。
+未执行全量 Harness 测试；alpha 的真实 Web 启动和付费请求仍未实测。
