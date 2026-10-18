@@ -24,7 +24,9 @@ test('真实 Loader + LLM + PiAiAdapter：flex 与 high thinking、文本和 usa
   assert.ok(chunks.some((chunk) => chunk.type === 'text-delta' && chunk.text === '离线回答'));
   assert.ok(chunks.some((chunk) => chunk.type === 'usage' && chunk.usage.totalTokens === 20));
   assert.ok(finish(chunks).replayState);
-  assert.deepEqual(references, ['OPENROUTER_API_KEY']);
+  // 凭据解析次数属于宿主实现细节（0.2.1-rc.2 起每次请求解析多次）；这里只要求指向原生环境变量引用。
+  assert.ok(references.length >= 1);
+  assert.ok(references.every((reference) => reference === 'OPENROUTER_API_KEY'));
 });
 
 test('工具调用和同路由第二轮 replay 保留 thinking 与工具关联', async (t) => {
@@ -66,7 +68,8 @@ test('每次解析凭据；缺失/空/无效值不向 SDK 或环境账户回退'
   setKey('changed-fake-key');
   assert.equal(finish(await collect(root.llm.stream(call()))).reason.kind, 'stop');
   assert.equal(fake.requests[0].authorization, 'Bearer changed-fake-key');
-  assert.equal(references.length, 4);
+  // 四次请求各至少解析一次；具体次数随宿主变化。
+  assert.ok(references.length >= 4);
 });
 
 test('未知模型和不支持 stop 在发送前失败', async (t) => {
