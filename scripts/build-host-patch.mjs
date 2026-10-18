@@ -5,9 +5,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // 只在 .cache 构建候选并生成补丁，不安装、不修改 node_modules 或用户 profile。
-const [sourceArg, pristineArg, version] = process.argv.slice(2);
-if (!sourceArg || !pristineArg || !['0.2.0-rc.2', '0.2.1-alpha.1'].includes(version)) {
-  throw new Error('用法：node scripts/build-host-patch.mjs <对应源码根目录> <已解包的原始 npm package 目录> <版本>');
+const [sourceArg, pristineArg, version, toolingArg] = process.argv.slice(2);
+if (!sourceArg || !pristineArg || !['0.2.0-rc.2', '0.2.1-alpha.1', '0.2.1-rc.2'].includes(version)) {
+  throw new Error('用法：node scripts/build-host-patch.mjs <对应源码根目录> <已解包的原始 npm package 目录> <版本> [提供 esbuild/tsx 的工具链根目录]');
 }
 const project = fileURLToPath(new URL('../', import.meta.url));
 const source = path.resolve(sourceArg);
@@ -17,7 +17,8 @@ for (const root of [owner, pristine]) {
   const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   if (manifest.name !== '@deepseek-ai/dsh-llm-pi-ai' || manifest.version !== version) throw new Error('源码与原始 npm 包必须匹配指定版本');
 }
-const require = createRequire(path.join(source, 'package.json'));
+// 源码树是可导出的片段时，esbuild/tsx 从工具链根目录解析，默认仍是源码树自身。
+const require = createRequire(path.join(toolingArg ? path.resolve(toolingArg) : source, 'package.json'));
 const { build } = require(require.resolve('esbuild', { paths: [require.resolve('tsx')] }));
 const candidate = path.join(project, '.cache', `package-candidate-${version}`);
 await mkdir(candidate, { recursive: true });
