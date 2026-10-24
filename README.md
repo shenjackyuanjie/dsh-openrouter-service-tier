@@ -14,13 +14,13 @@
 
 ## 宿主要求
 
-只支持宿主 `0.2.1-rc.2`，需要匹配的 `llm-pi-ai` 原生档位补丁。插件不是宿主升级器；未打补丁时工具和命令明确拒绝，不会假报配置成功。宿主升级后需要重新核对补丁与接口，不保留旧版本的兼容分支。
+只支持宿主 `0.2.1-rc.3`，需要匹配的 `llm-pi-ai` 原生档位补丁。插件不是宿主升级器；未打补丁时工具和命令明确拒绝，不会假报配置成功。宿主升级后需要重新核对补丁与接口，不保留旧版本的兼容分支。
 
 [`patches/`](./patches/) 提供该固定版本的 package-manager 补丁。实际加载独立 npm 包的宿主可在所属 pnpm 项目的 `patchedDependencies` 中配置补丁，再运行 `pnpm install` 并重启。宿主若内联该包，必须修改对应版本源码并重新构建宿主；单独 patch 一个未加载的依赖无效。禁止手改 `node_modules` 或共享 store。
 
 ```yaml
 patchedDependencies:
-  '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.2': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.2.patch
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.3': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.3.patch
 ```
 
 源码补丁及构建说明见 [补丁说明](./patches/README.md)，本机验收见 [原生方案验证](./validation/native-tier.md)。
@@ -71,7 +71,7 @@ dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.0 
 
 ## 本地构建与打包
 
-要求 Node `>=22.19.0`，开发使用 pnpm 11。开发依赖与宿主同为 `0.2.1-rc.2`，并通过本仓库固定补丁进行离线测试；这不改变用户宿主。
+要求 Node `>=22.19.0`，开发使用 pnpm 11。开发依赖与宿主同为 `0.2.1-rc.3`，并通过本仓库固定补丁进行离线测试；这不改变用户宿主。
 
 ```powershell
 pnpm install --frozen-lockfile --ignore-scripts
@@ -102,4 +102,4 @@ npm publish
 
 ## 验证
 
-`npm run check` 执行格式检查、类型检查、离线 Loader、LLM、Settings 回归，以及 [显示资源测试](./test/metadata.test.mjs)（zh/en locale 和图标导出、资源路径与大小、发布白名单及共享包身份）。隔离组合验证脚本已随旧宿主版本支持一并移除，当前只针对 `0.2.1-rc.2` 验证。宿主相关测试、keyless snapshot、启动和真实请求的实际执行结果记录在 [原生方案验证](./validation/native-tier.md)。
+`npm run check` 执行格式检查、类型检查、离线 Loader、LLM、Settings 回归，以及 [显示资源测试](./test/metadata.test.mjs)（zh/en locale 和图标导出、资源路径与大小、发布白名单及共享包身份）。隔离组合验证脚本已随旧宿主版本支持一并移除，当前只针对 `0.2.1-rc.3` 验证。宿主相关测试、keyless snapshot、启动和真实请求的实际执行结果记录在 [原生方案验证](./validation/native-tier.md)。
