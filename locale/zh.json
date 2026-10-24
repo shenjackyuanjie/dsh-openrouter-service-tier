@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "OpenRouter 服务档位",
-    "description": "通过命令、工具或原生设置控制 OpenRouter 请求档位，保留原生模型目录、凭据与 thinking。"
+    "title": "OpenRouter 服务等级",
+    "description": "通过命令、工具或原生设置控制 OpenRouter 请求的服务等级，保留原生模型目录、凭据与 thinking。"
   }
 }

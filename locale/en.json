@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "OpenRouter Service Tier",
-    "description": "Control native OpenRouter request tiers through commands, tools or native settings, preserving models, credentials and thinking."
+    "title": "OpenRouter 服务等级",
+    "description": "通过命令、工具或原生设置控制 OpenRouter 请求的服务等级，保留原生模型目录、凭据与 thinking。"
   }
 }
