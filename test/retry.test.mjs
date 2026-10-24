@@ -7,7 +7,10 @@ import { call, collect, fakeOpenRouter, finish, harness, MODEL, setupNative } fr
  * harness 只重试适配器分类为可重试码的失败，而分类来自错误文本。
  */
 
-const setup = async (t) => { const host = await setupNative(t); return { fake: host.fake, host }; };
+const setup = async (t) => {
+  const host = await setupNative(t);
+  return { fake: host.fake, host };
+};
 
 test('上游以 5xx 拒绝 flex 请求时，失败落在可重试的 SERVER 码上', async (t) => {
   const { fake, host } = await setup(t);

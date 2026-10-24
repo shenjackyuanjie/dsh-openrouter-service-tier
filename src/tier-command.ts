@@ -27,7 +27,10 @@ export function tierCommand(ctx: Context): CommandDefinition {
     description: '查看或修改 OpenRouter 请求档位（全局与按模型覆盖）',
     input: { hint: '[模型] [档位] | reset [模型]' },
     async handler(invocation) {
-      const tokens = invocation.rawInput.trim().split(/\s+/).filter((token) => token.length > 0);
+      const tokens = invocation.rawInput
+        .trim()
+        .split(/\s+/)
+        .filter((token) => token.length > 0);
       try {
         if (tokens.length === 0 || tokens[0] === 'list' || tokens[0] === 'help') {
           return { kind: 'success', text: `${describeTierState(readTierState(ctx))}\n\n${USAGE}` };
@@ -37,21 +40,31 @@ export function tierCommand(ctx: Context): CommandDefinition {
         const [first, second] = tokens;
         // reset 可作用于全局，也可只清除一个模型的覆盖。
         if (first === 'reset') {
-          const change = second === undefined
-            ? { kind: 'global' as const, tier: 'inherit' as const }
-            : { kind: 'model' as const, model: second, tier: 'inherit' as const };
+          const change =
+            second === undefined
+              ? { kind: 'global' as const, tier: 'inherit' as const }
+              : { kind: 'model' as const, model: second, tier: 'inherit' as const };
           await mutateTier(ctx, change, state.revision);
-          return { kind: 'success', text: `已清除档位${second === undefined ? '' : '覆盖'}。\n${describeTierState(readTierState(ctx))}` };
+          return {
+            kind: 'success',
+            text: `已清除档位${second === undefined ? '' : '覆盖'}。\n${describeTierState(readTierState(ctx))}`,
+          };
         }
         // 单个 token：全局档位；两个 token：模型 + 档位。
         if (second === undefined) {
           const tier = parseTierChoice(first!);
           await mutateTier(ctx, { kind: 'global', tier }, state.revision);
-          return { kind: 'success', text: `已更新全局档位。\n${describeTierState(readTierState(ctx))}` };
+          return {
+            kind: 'success',
+            text: `已更新全局档位。\n${describeTierState(readTierState(ctx))}`,
+          };
         }
         const tier = parseTierChoice(second);
         await mutateTier(ctx, { kind: 'model', model: first!, tier }, state.revision);
-        return { kind: 'success', text: `已更新模型覆盖。\n${describeTierState(readTierState(ctx))}` };
+        return {
+          kind: 'success',
+          text: `已更新模型覆盖。\n${describeTierState(readTierState(ctx))}`,
+        };
       } catch (error) {
         return failure(error);
       }
