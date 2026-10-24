@@ -1,12 +1,17 @@
 # 原生宿主补丁
 
-只提供 `0.2.1-rc.3` 一套：`@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.3.patch`。它是原始 npm 包的固定版本 package-manager patch，只改 `lib/index.js` 与 `lib/types/config.d.ts`，不更换宿主其他包。
+同时提供 `0.2.1-rc.2` 与 `0.2.1-rc.3` 两套，各自对应一个宿主版本，不混用：
 
-宿主升级后需要重新生成补丁，不保留旧版本文件。请求 tier 使用 OpenRouter 文档支持的五个协议值；Chat Completions、Responses、Messages 均保留原生链。
+- `@deepseek-ai__dsh-llm-pi-ai@<版本>.patch`：原始 npm 包的固定版本 package-manager patch，只改 `lib/index.js` 与类型声明，不更换宿主其他包。
+- `llm-pi-ai-0.2.1-rc.2.source.patch`：rc.2 对应的公开源码改法（配置、原生 adapter、双语 README 与离线回归用例）。rc.3 没有可用的源码级 patch，改法记录在下文。
+
+宿主升级到新版本后需要重新生成对应补丁，不要用旧版本的补丁去 patch 新版本。请求 tier 使用 OpenRouter 文档支持的五个协议值；Chat Completions、Responses、Messages 均保留原生链。
 
 ## 补丁做了什么
 
-1. `lib/index.js` 在 profile schema 之前加入档位选择逻辑（`OPENROUTER_SERVICE_TIERS`、`openRouterTierFor`、`supportsOpenRouterTier`）并从包导出，供插件断言协议档位一致。
+rc.2 与 rc.3 的补丁内容等价，差别只在构建产物结构：
+
+1. 在 profile schema 之前加入档位选择逻辑（`OPENROUTER_SERVICE_TIERS`、`openRouterTierFor`、`supportsOpenRouterTier`），并从包导出，供插件断言协议档位一致。
 2. `profile` schema 增加 `serviceTier`（五个协议值或 null）与 `modelServiceTiers`（`[{ model, tier }]`，另允许 `omit`）。
 3. `streamWithSnapshot` 在准备请求时按 profile 解析档位；显式档位遇到不支持的协议会在解析凭据或访问网络前失败。
 4. `streamSimple` 选项加入 `onPayload`，只给请求 body 顶层写 `service_tier`；无有效档位时不加 hook。
@@ -32,6 +37,8 @@ patchedDependencies:
   '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.3': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.3.patch
 ```
 
+宿主是 `0.2.1-rc.2` 时，把键与文件都换成 `0.2.1-rc.2`。pnpm 会把「登记了补丁却没有对应依赖版本」当作错误（`ERR_PNPM_UNUSED_PATCH`），所以只登记宿主实际安装的版本；本仓库因此只启用 rc.3 一条，rc.2 补丁仍随包发布。
+
 不要手改 `node_modules`；插件自身的开发依赖补丁不等于运行宿主已打补丁。替换补丁内容后，pnpm 可能复用旧的补丁结果，需要删除该包的 `node_modules` 条目或重建依赖树才会重新应用。
 
-参见[插件 README](../README.md)的安装步骤。插件测试只有一套：`npm run check` 使用本仓库 `0.2.1-rc.3` 开发依赖与同名补丁。
+参见[插件 README](../README.md)的安装步骤。本仓库的 `npm run check` 使用 `0.2.1-rc.3` 开发依赖与对应补丁；rc.2 补丁结构与它等价，随包发布供 rc.2 宿主使用。

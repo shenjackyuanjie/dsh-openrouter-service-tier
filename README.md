@@ -14,7 +14,7 @@
 
 ## 宿主要求
 
-只支持宿主 `0.2.1-rc.3`，需要匹配的 `llm-pi-ai` 原生档位补丁。插件不是宿主升级器；未打补丁时工具和命令明确拒绝，不会假报配置成功。宿主升级后需要重新核对补丁与接口，不保留旧版本的兼容分支。
+支持宿主 `0.2.1-rc.2` 与 `0.2.1-rc.3`，每个版本都需要匹配的 `llm-pi-ai` 原生档位补丁；两套补丁随包发布，不要混用。插件不是宿主升级器；未打补丁时工具和命令明确拒绝，不会假报配置成功。更早的宿主版本不再适配。
 
 [`patches/`](./patches/) 提供该固定版本的 package-manager 补丁。实际加载独立 npm 包的宿主可在所属 pnpm 项目的 `patchedDependencies` 中配置补丁，再运行 `pnpm install` 并重启。宿主若内联该包，必须修改对应版本源码并重新构建宿主；单独 patch 一个未加载的依赖无效。禁止手改 `node_modules` 或共享 store。
 
@@ -22,6 +22,8 @@
 patchedDependencies:
   '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.3': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.3.patch
 ```
+
+宿主是 `0.2.1-rc.2` 时改用同目录的 `...@0.2.1-rc.2.patch` 与对应版本键。
 
 源码补丁及构建说明见 [补丁说明](./patches/README.md)，本机验收见 [原生方案验证](./validation/native-tier.md)。
 
