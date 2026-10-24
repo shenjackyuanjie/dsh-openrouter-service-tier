@@ -1,19 +1,25 @@
-# dsh-openrouter-service-tier
+# OpenRouter 服务等级
 
-`0.3.1`：控制 DeepSeek Harness **原生 `openrouter`** 请求档位，不注册独立 adapter 或第二套模型目录。thinking、认证、消息、工具、附件、replay、取消、超时与重试走宿主原生调用链。
+`0.4.0`：控制 DeepSeek Harness **原生 `openrouter`** 请求档位，不注册独立 adapter 或第二套模型目录。thinking、认证、消息、工具、附件、replay、取消、超时与重试走宿主原生调用链。
+
+## 显示名称与资源
+
+插件列表、详情页和组件行显示“OpenRouter 服务等级”及中文说明，图标为原创 SVG。显示元数据通过导出的 zh/en locale 和 `./icon` 提供，停用时也可读取，无需为显示信息启用插件。
+
+包名与 row id 仍是 `@shenjackyuanjie/dsh-openrouter-service-tier` 与 `openrouter-service-tier`。图标随本仓库以 MIT 许可发布。
 
 ## 宿主要求
 
-支持 `0.2.0-rc.2`、`0.2.1-alpha.1` 与 `0.2.1-rc.2`，每版均需对应的 `llm-pi-ai` 原生档位补丁。插件不是宿主升级器；未打补丁时工具和命令明确拒绝，不会假报配置成功。跨版本不能混装下载包。
+只支持宿主 `0.2.1-rc.2`，需要匹配的 `llm-pi-ai` 原生档位补丁。插件不是宿主升级器；未打补丁时工具和命令明确拒绝，不会假报配置成功。宿主升级后需要重新核对补丁与接口，不保留旧版本的兼容分支。
 
-[`patches/`](./patches/) 提供固定版本的 package-manager 补丁。实际加载独立 npm 包的宿主可在所属 pnpm 项目的 `patchedDependencies` 中配置对应补丁，再运行 `pnpm install` 并重启。宿主若内联该包，必须修改对应版本源码并重新构建宿主；单独 patch 一个未加载的依赖无效。禁止手改 `node_modules` 或共享 store。
+[`patches/`](./patches/) 提供该固定版本的 package-manager 补丁。实际加载独立 npm 包的宿主可在所属 pnpm 项目的 `patchedDependencies` 中配置补丁，再运行 `pnpm install` 并重启。宿主若内联该包，必须修改对应版本源码并重新构建宿主；单独 patch 一个未加载的依赖无效。禁止手改 `node_modules` 或共享 store。
 
 ```yaml
 patchedDependencies:
-  '@deepseek-ai/dsh-llm-pi-ai@0.2.0-rc.2': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.0-rc.2.patch
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.2': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.2.patch
 ```
 
-换版本时同时替换版本键和补丁文件：alpha 用 `0.2.1-alpha.1`，rc 用 `0.2.1-rc.2`。源码补丁及构建说明见 [补丁说明](./patches/README.md)，本机验收见 [原生方案验证](./validation/native-tier.md)。
+源码补丁及构建说明见 [补丁说明](./patches/README.md)，本机验收见 [原生方案验证](./validation/native-tier.md)。
 
 ## 使用
 
@@ -45,14 +51,14 @@ Agent 工具名为 `openrouter_service_tier`，支持 `get`、`set`、`reset`。
 
 ## 安装
 
-包名：`@shenjackyuanjie/dsh-openrouter-service-tier`，registry：GitHub Packages。先按上文为宿主应用对应补丁。
+包名：`@shenjackyuanjie/dsh-openrouter-service-tier`，registry：GitHub Packages。先按上文为宿主应用补丁。
 
 GitHub npm registry 安装公开包也需要认证，使用具备 `read:packages` 的 classic PAT，在本机终端登录（不要提交 token）：
 
 ```powershell
 npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
 npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
-dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.3.1 --ignore-scripts
+dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.0 --ignore-scripts
 ```
 
 登录时 Username 填 GitHub 用户名，Password 填 PAT。其他 scope 的依赖继续从原 npm registry 获取。参见 [GitHub npm registry 认证说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。
@@ -61,7 +67,7 @@ dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.3.1 
 
 ## 本地构建与打包
 
-要求 Node `>=22.19.0`，开发使用 pnpm 11。开发依赖用 rc.2，并通过本仓库固定补丁进行离线测试；这不改变用户宿主。
+要求 Node `>=22.19.0`，开发使用 pnpm 11。开发依赖与宿主同为 `0.2.1-rc.2`，并通过本仓库固定补丁进行离线测试；这不改变用户宿主。
 
 ```powershell
 pnpm install --frozen-lockfile --ignore-scripts
@@ -69,10 +75,12 @@ npm run check
 npm pack --ignore-scripts --pack-destination .cache
 ```
 
+`npm run check` 依次执行 `format:check`、类型检查与离线测试；改写格式执行 `npm run format`。项目用 Prettier 统一代码与文档风格，构建产物 `lib/` 不纳入格式化。
+
 构建产生 `lib/`，安装前必须构建。将 tarball 安装到原 profile，例如：
 
 ```powershell
-dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.3.1.tgz --ignore-scripts
+dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.0.tgz --ignore-scripts
 ```
 
 本地 tarball 安装不需要 GitHub registry 认证。
@@ -83,7 +91,6 @@ dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier
 
 ```powershell
 npm run check
-node scripts/test-alpha.mjs
 npm publish
 ```
 
@@ -91,4 +98,4 @@ npm publish
 
 ## 验证
 
-`npm run check` 执行类型检查与离线 Loader、LLM、Settings 回归。`node scripts/test-alpha.mjs` 在 `.compat/alpha` 构造独立 alpha 组合并应用对应宿主补丁，不安装用户 profile；`node scripts/test-alpha.mjs 0.2.1-rc.2` 用同一条流程验证 rc.2 组合。宿主相关测试、keyless snapshot、启动和真实请求的实际执行结果记录在 [原生方案验证](./validation/native-tier.md)。
+`npm run check` 执行格式检查、类型检查、离线 Loader、LLM、Settings 回归，以及 [显示资源测试](./test/metadata.test.mjs)（zh/en locale 和图标导出、资源路径与大小、发布白名单及共享包身份）。隔离组合验证脚本已随旧宿主版本支持一并移除，当前只针对 `0.2.1-rc.2` 验证。宿主相关测试、keyless snapshot、启动和真实请求的实际执行结果记录在 [原生方案验证](./validation/native-tier.md)。

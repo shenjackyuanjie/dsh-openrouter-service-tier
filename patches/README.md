@@ -2,17 +2,17 @@
 
 两种交付相互对应：
 
-- `@deepseek-ai__dsh-llm-pi-ai@<版本>.patch`：原始 npm 包的固定版本 package-manager patch，仅改 `lib/index.js` 和三个类型声明文件，不更换宿主其他包。
-- `llm-pi-ai-<版本>.source.patch`：对应公开源码的配置、原生 adapter、双语 README 和离线回归用例。
+- `@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.2.patch`：原始 npm 包的固定版本 package-manager patch，仅改 `lib/index.js` 和三个类型声明文件，不更换宿主其他包。
+- `llm-pi-ai-0.2.1-rc.2.source.patch`：对应公开源码的配置、原生 adapter、双语 README 和离线回归用例。
 
-当前提供 `0.2.0-rc.2`、`0.2.1-alpha.1` 与 `0.2.1-rc.2` 三套。基线分别是公开 tag `dsh-v0.2.0-rc.2`、`dsh-v0.2.1-alpha.1`、`dsh-v0.2.1-rc.2`。不要混用内部变体。请求 tier 使用 OpenRouter 文档支持的五个协议值；Chat Completions、Responses、Messages 均保留原生链。
+只提供 `0.2.1-rc.2` 一套，基线是公开 tag `dsh-v0.2.1-rc.2`。不要混用内部变体。宿主升级后需要重新生成补丁，不保留旧版本文件。请求 tier 使用 OpenRouter 文档支持的五个协议值；Chat Completions、Responses、Messages 均保留原生链。
 
 ## 源码实施
 
 在匹配版本、干净的公开源码树中应用 source patch，安装其开发依赖，运行相关测试与 `pnpm exec tsc -b packages/llm/llm-pi-ai`。
 
 ```powershell
-git apply D:\path\patches\llm-pi-ai-0.2.0-rc.2.source.patch
+git apply D:\path\patches\llm-pi-ai-0.2.1-rc.2.source.patch
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm exec tsc -b packages/llm/llm-pi-ai
 pnpm exec vitest run packages/llm/llm-pi-ai/tests/config.spec.ts packages/llm/llm-pi-ai/tests/adapter.spec.ts packages/llm/llm-pi-ai/tests/dynamic-config.spec.ts packages/llm/llm-pi-ai/tests/loader-composition.spec.ts
@@ -36,4 +36,4 @@ node scripts/build-host-patch.mjs <对应版本源码根目录> <原始解包的
 
 在实际负责解析原生包的 pnpm 项目中，将版本限定的补丁登记到 `pnpm-workspace.yaml` 的 `patchedDependencies`，再运行 `pnpm install` 并重启 Host。不要手改 node_modules；插件开发依赖补丁并不等于运行宿主已打补丁。
 
-参见[插件 README](../README.md)的安装步骤。插件测试分三套：`npm run check` 使用本仓库 `0.2.0-rc.2` 开发依赖与补丁；`node scripts/test-alpha.mjs` 在 `.compat/alpha` 使用 alpha 补丁；`node scripts/test-alpha.mjs 0.2.1-rc.2` 在 `.compat/rc2` 使用 rc.2 补丁。
+参见[插件 README](../README.md)的安装步骤。插件测试只有一套：`npm run check` 使用本仓库 `0.2.1-rc.2` 开发依赖与同名补丁。
