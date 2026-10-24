@@ -6,7 +6,11 @@
 
 插件列表、详情页和组件行显示“OpenRouter 服务等级”及中文说明，图标为原创 SVG。显示元数据通过导出的 zh/en locale 和 `./icon` 提供，停用时也可读取，无需为显示信息启用插件。
 
-包名与 row id 仍是 `@shenjackyuanjie/dsh-openrouter-service-tier` 与 `openrouter-service-tier`。图标随本仓库以 MIT 许可发布。
+包名与 row id 仍是 `@shenjackyuanjie/dsh-openrouter-service-tier` 与 `openrouter-service-tier`。图标随本仓库发布。
+
+## 许可证
+
+本项目以 [MIT 许可证](./LICENSE)发布。
 
 ## 宿主要求
 
