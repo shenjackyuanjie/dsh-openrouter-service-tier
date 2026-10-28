@@ -1,6 +1,6 @@
 {
   "name": "@shenjackyuanjie/dsh-openrouter-service-tier",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "控制 DeepSeek Harness 原生 OpenRouter service tier，不新增模型目录，保留 thinking 和原生调用链。",
   "type": "module",
   "license": "GPL-3.0-or-later",

@@ -29,7 +29,7 @@ patchedDependencies:
 ```powershell
 npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
 npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
-dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.1 --ignore-scripts
+dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.2 --ignore-scripts
 ```
 
 Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从原 npm registry 获取，认证方法参见 [GitHub npm registry 说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。首次安装后需在插件管理器启用该 bundle；安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不会默认把请求改为 flex。更换宿主或插件代码后重启 Host，之后的档位修改通过原生 volatile 热更新生效。
@@ -37,7 +37,7 @@ Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从�
 本地 tarball 安装不需要 GitHub 认证（先 `npm run build` 产出 `lib/`，再打包得到 tarball）：
 
 ```powershell
-dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.1.tgz --ignore-scripts
+dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.2.tgz --ignore-scripts
 ```
 
 ## 使用
