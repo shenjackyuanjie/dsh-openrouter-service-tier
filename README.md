@@ -1,6 +1,8 @@
 # OpenRouter 服务等级
 
-`0.4.0`：控制 DeepSeek Harness **原生 `openrouter`** 请求档位，不注册独立 adapter 或第二套模型目录。thinking、认证、消息、工具、附件、replay、取消、超时与重试走宿主原生调用链。
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](./LICENSE)
+
+控制 DeepSeek Harness **原生 `openrouter`** 请求档位，不注册独立 adapter 或第二套模型目录。thinking、认证、消息、工具、附件、replay、取消、超时与重试走宿主原生调用链。
 
 ## 显示名称与资源
 
@@ -8,9 +10,15 @@
 
 包名与 row id 仍是 `@shenjackyuanjie/dsh-openrouter-service-tier` 与 `openrouter-service-tier`。图标随本仓库发布。
 
+## 展示
+
+![`/openrouter-tier` 命令与档位效果（示意图）](./docs/openrouter-tier-command.png)
+
+> 上图为界面示意图，非真实运行截图，效果以实际插件输出为准。
+
 ## 许可证
 
-本项目以 [MIT 许可证](./LICENSE)发布。
+本项目以 [GNU GPL-3.0-or-later 许可证](./LICENSE)发布，Copyright (c) 2026 shenjackyuanjie。
 
 ## 宿主要求
 
