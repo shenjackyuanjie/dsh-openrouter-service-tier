@@ -12,7 +12,7 @@
 
 ## 宿主要求
 
-- 支持宿主 `0.2.1-rc.2` 与 `0.2.1-rc.3`，每个版本都需要匹配版本的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。未打补丁时命令与工具会明确拒绝，不会假报配置成功。
+- 支持宿主 `0.2.1-rc.2`、`0.2.1-rc.3` 与 `0.2.1-rc.4`，每个版本都需要匹配版本的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。未打补丁时命令与工具会明确拒绝，不会假报配置成功。
 - 补丁登记在实际解析 `@deepseek-ai/dsh-llm-pi-ai` 的 pnpm 项目中，运行 `pnpm install` 并重启 Host：
 
 ```yaml
@@ -20,7 +20,7 @@ patchedDependencies:
   '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.3': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.3.patch
 ```
 
-宿主是 `0.2.1-rc.2` 时，键与文件都换成 `0.2.1-rc.2`。只登记宿主实际安装的版本（pnpm 会把没有对应依赖的补丁登记报错），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
+宿主是 `0.2.1-rc.2` 或 `0.2.1-rc.4` 时，键与文件都换成对应版本。只登记宿主实际安装的版本（pnpm 会把没有对应依赖的补丁登记报错），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
 
 ## 安装
 

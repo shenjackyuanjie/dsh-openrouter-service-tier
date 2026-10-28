@@ -1,6 +1,6 @@
 # 原生宿主补丁
 
-同时提供 `0.2.1-rc.2` 与 `0.2.1-rc.3` 两套，各自对应一个宿主版本，不混用：
+同时提供 `0.2.1-rc.2`、`0.2.1-rc.3` 与 `0.2.1-rc.4` 三套，各自对应一个宿主版本，不混用：
 
 - `@deepseek-ai__dsh-llm-pi-ai@<版本>.patch`：原始 npm 包的固定版本 package-manager patch，只改 `lib/index.js` 与类型声明，不更换宿主其他包。
 - `llm-pi-ai-0.2.1-rc.2.source.patch`：rc.2 对应的公开源码改法（配置、原生 adapter、双语 README 与离线回归用例）。rc.3 没有可用的源码级 patch，改法记录在下文。
@@ -9,7 +9,7 @@
 
 ## 补丁做了什么
 
-rc.2 与 rc.3 的补丁内容等价，差别只在构建产物结构：
+三套补丁内容等价，差别只在构建产物结构：
 
 1. 在 profile schema 之前加入档位选择逻辑（`OPENROUTER_SERVICE_TIERS`、`openRouterTierFor`、`supportsOpenRouterTier`），并从包导出，供插件断言协议档位一致。
 2. `profile` schema 增加 `serviceTier`（五个协议值或 null）与 `modelServiceTiers`（`[{ model, tier }]`，另允许 `omit`）。
@@ -19,7 +19,7 @@ rc.2 与 rc.3 的补丁内容等价，差别只在构建产物结构：
 
 ## 从构建产物移植
 
-rc.3 的 `lib/index.js` 是打包产物，没有可用的源码级 patch。移植做法与校验步骤：
+rc.3 与 rc.4 的 `lib/index.js` 是打包产物，没有可用的源码级 patch。移植做法与校验步骤相同（下例以 rc.3 为准，rc.4 把版本号与缓存脚本名换成对应值）：
 
 1. `npm pack @deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.3` 解包，得到原始 `lib/index.js` 与 `lib/types/config.d.ts`。
 2. 用 `.cache/port-rc3-tier.mjs`、`.cache/port-rc3-tier-dts.mjs` 做四处唯一命中的文本替换，生成打补丁后的两个文件。
@@ -37,8 +37,8 @@ patchedDependencies:
   '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.3': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.3.patch
 ```
 
-宿主是 `0.2.1-rc.2` 时，把键与文件都换成 `0.2.1-rc.2`。pnpm 会把「登记了补丁却没有对应依赖版本」当作错误（`ERR_PNPM_UNUSED_PATCH`），所以只登记宿主实际安装的版本；本仓库因此只启用 rc.3 一条，rc.2 补丁仍随包发布。
+宿主是 `0.2.1-rc.2` 或 `0.2.1-rc.4` 时，把键与文件都换成对应版本。pnpm 会把「登记了补丁却没有对应依赖版本」当作错误（`ERR_PNPM_UNUSED_PATCH`），所以只登记宿主实际安装的版本；本仓库因此只启用 rc.3 一条，rc.2 与 rc.4 补丁仍随包发布。
 
 不要手改 `node_modules`；插件自身的开发依赖补丁不等于运行宿主已打补丁。替换补丁内容后，pnpm 可能复用旧的补丁结果，需要删除该包的 `node_modules` 条目或重建依赖树才会重新应用。
 
-参见[插件 README](../README.md)的安装步骤。本仓库的 `npm run check` 使用 `0.2.1-rc.3` 开发依赖与对应补丁；rc.2 补丁结构与它等价，随包发布供 rc.2 宿主使用。
+参见[插件 README](../README.md)的安装步骤。本仓库的 `npm run check` 使用 `0.2.1-rc.3` 开发依赖与对应补丁；rc.2 与 rc.4 补丁结构与它等价，随包发布供对应版本宿主使用。
