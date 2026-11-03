@@ -4,6 +4,24 @@
 
 `@shenjackyuanjie/dsh-openrouter-service-tier`：控制 DeepSeek Harness **原生 `openrouter`** provider 的 service tier（请求档位）。插件不注册独立 adapter、不新增模型目录，thinking、认证、消息、工具、附件、replay、取消、超时与重试全部走宿主原生调用链；档位通过 `/openrouter-tier` 命令、`openrouter_service_tier` Agent 工具或原生设置入口修改。
 
+## 安装
+
+包发布在 GitHub Packages，安装公开包也需要认证。准备一个具备 `read:packages` 的 classic PAT，在本机终端登录（不要提交 token）：
+
+```powershell
+npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
+npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
+dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.3 --ignore-scripts
+```
+
+Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从原 npm registry 获取，认证方法参见 [GitHub npm registry 说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。首次安装后需在插件管理器启用该 bundle；安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不会默认把请求改为 flex。更换宿主或插件代码后重启 Host，之后的档位修改通过原生 volatile 热更新生效。
+
+本地 tarball 安装不需要 GitHub 认证（先 `npm run build` 产出 `lib/`，再打包得到 tarball）：
+
+```powershell
+dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.3.tgz --ignore-scripts
+```
+
 ## 展示
 
 ![`/openrouter-tier` 命令与档位效果（示意图）](./docs/openrouter-tier-command.png)
@@ -12,33 +30,15 @@
 
 ## 宿主要求
 
-- 支持宿主 `0.2.1-rc.2`、`0.2.1-rc.3` 与 `0.2.1-rc.4`，每个版本都需要匹配版本的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。未打补丁时命令与工具会明确拒绝，不会假报配置成功。
+- 支持宿主 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4` 与 `0.2.1-rc.5`，每个版本都需要匹配版本的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。`0.2.1-rc.5` 的 `dsh-llm-pi-ai` 构建产物与 `rc.4` 逐字节相同，两者补丁内容一致，只是版本键不同。未打补丁时命令与工具会明确拒绝，不会假报配置成功。
 - 补丁登记在实际解析 `@deepseek-ai/dsh-llm-pi-ai` 的 pnpm 项目中，运行 `pnpm install` 并重启 Host：
 
 ```yaml
 patchedDependencies:
-  '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.3': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.3.patch
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.5': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.5.patch
 ```
 
-宿主是 `0.2.1-rc.2` 或 `0.2.1-rc.4` 时，键与文件都换成对应版本。只登记宿主实际安装的版本（pnpm 会把没有对应依赖的补丁登记报错），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
-
-## 安装
-
-包发布在 GitHub Packages，安装公开包也需要认证。准备一个具备 `read:packages` 的 classic PAT，在本机终端登录（不要提交 token）：
-
-```powershell
-npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
-npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
-dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.2 --ignore-scripts
-```
-
-Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从原 npm registry 获取，认证方法参见 [GitHub npm registry 说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。首次安装后需在插件管理器启用该 bundle；安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不会默认把请求改为 flex。更换宿主或插件代码后重启 Host，之后的档位修改通过原生 volatile 热更新生效。
-
-本地 tarball 安装不需要 GitHub 认证（先 `npm run build` 产出 `lib/`，再打包得到 tarball）：
-
-```powershell
-dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.2.tgz --ignore-scripts
-```
+宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` 时，键与文件都换成对应版本。只登记宿主实际安装的版本（pnpm 会把没有对应依赖的补丁登记报错），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
 
 ## 使用
 
@@ -73,9 +73,20 @@ dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier
 
 档位通过**原生 `llm-pi-ai` 插件设置入口**、`/openrouter-tier` 命令或 `openrouter_service_tier` 工具修改。本插件没有专用设置面板、客户端 bundle 或自己的档位 namespace，控制插件配置固定为 `{}`。
 
+在原生 `llm-pi-ai` 设置中找到 `providers.openrouter`，档位配置如下（需要先安装对应宿主版本的补丁）：
+
+| 设置       | 原生配置字段                             | 取值与行为                                                                                         |
+| ---------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 全局档位   | `providers.openrouter.serviceTier`       | `default` / `flex` / `priority` / `fast` / `ultrafast`；`null` 表示显式不发送全局档位。            |
+| 按模型覆盖 | `providers.openrouter.modelServiceTiers` | 数组，每项为 `{ model, tier }`；`model` 为精确模型 ID，`tier` 还可用 `omit` 屏蔽该模型的全局档位。 |
+
+两个字段默认均不设置，沿用底层配置；没有继承值时不发送 `service_tier`。命令或工具中的全局 `omit` 会写入 `serviceTier: null`，模型 `omit` 则写入该模型的 `tier: 'omit'`。`default` 是实际发送给 OpenRouter 的档位值，不等于恢复继承或不发送。
+
+例如，先执行 `/openrouter-tier flex`，再执行 `/openrouter-tier openai/gpt-6-luna priority`，就会让该模型使用 priority，其他模型使用 flex。需要让某个模型完全不带档位时使用模型 `omit`；要恢复全局底层继承时使用 `/openrouter-tier reset`。保存后无需重启，只影响新准备的请求。
+
 ## 开发与验证
 
-要求 Node `>=22.19.0`，开发使用 pnpm 11；开发依赖与离线测试固定 `0.2.1-rc.3` 及对应补丁，不改变用户宿主。
+要求 Node `>=22.19.0`，开发使用 pnpm 11；开发依赖与离线测试固定 `0.2.1-rc.5` 及对应补丁，不改变用户宿主。
 
 ```powershell
 pnpm install --frozen-lockfile --ignore-scripts
