@@ -1,0 +1,88 @@
+diff --git a/lib/index.js b/lib/index.js
+index 4b1e5ad..1a9585b 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -1046,7 +1046,32 @@ const modelProfile = z.object({
+ });
+ /** A {@link modelProfile} whose id lives in the `modelOverrides` dict key. */
+ const modelOverride = z.object(modelFields);
++/** OpenRouter wire tiers accepted by Chat Completions, Responses, and Messages. */
++const OPENROUTER_SERVICE_TIERS = ["default", "flex", "priority", "fast", "ultrafast"];
++/**
++ * Select a tier from one captured profile, never from live settings.
++ * @param profile - the request's resolved profile.
++ * @param model - exact model id.
++ * @returns the wire tier, or undefined when no tier should be sent.
++ */
++function openRouterTierFor(profile, model) {
++	const tier = profile.modelServiceTiers?.find((entry) => entry.model === model)?.tier ?? profile.serviceTier;
++	return tier === "omit" || tier === null ? void 0 : tier;
++}
++/**
++ * Whether an OpenRouter API accepts a top-level service_tier.
++ * @param api - the resolved model protocol.
++ * @returns true for the three documented OpenRouter HTTP APIs.
++ */
++function supportsOpenRouterTier(api) {
++	return ["openai-completions", "openai-responses", "anthropic-messages"].includes(api);
++}
+ const profile = z.object({
++	serviceTier: z.union([...OPENROUTER_SERVICE_TIERS, z.const(null)]),
++	modelServiceTiers: z.array(z.object({
++		model: z.string().required(),
++		tier: z.union([...OPENROUTER_SERVICE_TIERS, "omit"]).required()
++	})),
+ 	apiKeyEnv: z.string().role("credential-ref"),
+ 	displayName: z.string(),
+ 	api: z.union(supportedProtocols()),
+@@ -1944,6 +1969,8 @@ var PiAiAdapter = class extends LlmAdapter {
+ 			if (options.stop !== void 0) throw new LlmError("llm-pi-ai does not support GenerateOptions.stop", "UNSUPPORTED_OPTION");
+ 			const profile = this.profileOf(snapshot, options.provider);
+ 			const model = this.modelOf(snapshot, options.provider, options.model);
++			const serviceTier = options.provider === "openrouter" ? openRouterTierFor(profile, model.id) : void 0;
++			if (serviceTier !== void 0 && !supportsOpenRouterTier(model.api)) throw new LlmError(`OpenRouter service tier is not supported for protocol "${model.api}"`, "UNSUPPORTED_OPTION");
+ 			const updates = conversationUpdates(model);
+ 			const tools = options.tools ?? [];
+ 			const request = model.api === "anthropic-messages" && updates.toolUpdate === "in-history" && tools.every((tool) => tool.deferLoading === true) && options.messages.some((message) => message.role === "developer" && message.content.some((block) => block.type === "tool-addition" || block.type === "tool-removal")) ? {
+@@ -1982,6 +2009,10 @@ var PiAiAdapter = class extends LlmAdapter {
+ 				}, onReplayDegrade);
+ 				const iterator = toStreamChunks(snapshot.models.streamSimple(model, context, {
+ 					...profileOptions(profile, reasoning, apiKey),
++					...serviceTier === void 0 ? {} : { onPayload: (payload) => {
++						if (payload === null || typeof payload !== "object" || Array.isArray(payload)) throw new LlmError("OpenRouter service tier requires an object payload", "UNSUPPORTED_OPTION");
++						Object.assign(payload, { service_tier: serviceTier });
++					} },
+ 					...options.temperature === void 0 ? {} : { temperature: options.temperature },
+ 					...options.maxTokens === void 0 ? {} : { maxTokens: options.maxTokens },
+ 					...options.sessionId === void 0 ? {} : { sessionId: String(options.sessionId) },
+@@ -2965,4 +2996,4 @@ function apply(ctx, config) {
+ 	});
+ }
+ //#endregion
+-export { Config, PiAiAdapter, apply, inject, name, recordKeyFor, supportedProtocols };
++export { Config, OPENROUTER_SERVICE_TIERS, PiAiAdapter, apply, inject, name, recordKeyFor, supportedProtocols };
+diff --git a/lib/types/config.d.ts b/lib/types/config.d.ts
+index f45d7d9..4dd1534 100644
+--- a/lib/types/config.d.ts
++++ b/lib/types/config.d.ts
+@@ -50,8 +50,20 @@ export declare const DEFAULT_MAX_TOKENS = 32768;
+  */
+ export declare const DEFAULT_INPUT: readonly PiAiModality[];
+ export type { PiAiCompatProfile, PiAiModality, PiAiModelOverride, PiAiModelProfile, PiAiReasoningEfforts, PiAiThinkingFormat, } from './catalog.ts';
++/** OpenRouter wire tier accepted by Chat Completions, Responses, and Messages. */
++export type OpenRouterServiceTier = 'default' | 'flex' | 'priority' | 'fast' | 'ultrafast';
++/** Exact model-id override; `omit` suppresses the global tier for that model. */
++export interface OpenRouterModelServiceTier {
++    model: string;
++    tier: OpenRouterServiceTier | 'omit';
++}
++
+ /** Configuration for one pi-ai provider route; the `providers` dict key IS the route. */
+ export interface PiAiProviderProfile {
++    /** OpenRouter-only request tier; null explicitly suppresses an inherited global tier. */
++    serviceTier?: OpenRouterServiceTier | null;
++    /** Exact model overrides take precedence over serviceTier; omit sends no tier for that model. */
++    modelServiceTiers?: OpenRouterModelServiceTier[];
+     /** Credential reference (environment-variable name) resolved per request through `ctx.credentials`. */
+     apiKeyEnv?: string;
+     /** Name shown by configuration surfaces; defaults to the route key. */
