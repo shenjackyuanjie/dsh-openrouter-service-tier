@@ -47,7 +47,7 @@ function nativeTarget(ctx: Context): NativeTarget {
   }
   if (!schema?.dict?.serviceTier || !schema.dict.modelServiceTiers) {
     throw new Error(
-      '宿主缺少原生 OpenRouter service tier 能力；0.2.0-rc.2 / 0.2.1-alpha.1 均需对应 llm-pi-ai 补丁',
+      '宿主缺少原生 OpenRouter service tier 能力；请安装与宿主版本匹配的 llm-pi-ai 补丁',
     );
   }
   return { settings, descriptor, path: route.settingsPath, profile };
