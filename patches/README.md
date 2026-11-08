@@ -1,6 +1,6 @@
 # 原生宿主补丁
 
-同时提供 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4` 与 `0.2.1-rc.5` 四套，各自对应一个宿主版本，不混用：
+同时提供 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4`、`0.2.1-rc.5` 与 `0.2.2-rc.1` 五套，各自对应一个宿主版本，不混用：
 
 - `@deepseek-ai__dsh-llm-pi-ai@<版本>.patch`：原始 npm 包的固定版本 package-manager patch，只改 `lib/index.js` 与类型声明，不更换宿主其他包。
 - `llm-pi-ai-0.2.1-rc.2.source.patch`：rc.2 对应的公开源码改法（配置、原生 adapter、双语 README 与离线回归用例）。rc.3 及之后的版本没有可用的源码级 patch，改法记录在下文。
@@ -9,9 +9,9 @@
 
 ## 补丁做了什么
 
-四套补丁内容等价，差别只在构建产物结构：
+五套补丁功能等价，差别只在构建产物结构：
 
-1. 在 profile schema 之前加入档位选择逻辑（`OPENROUTER_SERVICE_TIERS`、`openRouterTierFor`、`supportsOpenRouterTier`），并从包导出，供插件断言协议档位一致。
+1. 在 profile schema 之前加入档位选择逻辑（`OPENROUTER_SERVICE_TIERS`、`openRouterTierFor`、`supportsOpenRouterTier`）；其中 `OPENROUTER_SERVICE_TIERS` 从包导出，供插件断言协议档位一致。
 2. `profile` schema 增加 `serviceTier`（五个协议值或 null）与 `modelServiceTiers`（`[{ model, tier }]`，另允许 `omit`）。
 3. `streamWithSnapshot` 在准备请求时按 profile 解析档位；显式档位遇到不支持的协议会在解析凭据或访问网络前失败。
 4. `streamSimple` 选项加入 `onPayload`，只给请求 body 顶层写 `service_tier`；无有效档位时不加 hook。
@@ -28,17 +28,36 @@ rc.3、rc.4 与 rc.5 的 `lib/index.js` 是打包产物，没有可用的源码�
 
 `OPENROUTER_SERVICE_TIERS` 必须声明在 `profile` schema 之前：它是 `const`，放在后面会让 schema 求值触发 TDZ 错误。补丁已按此顺序生成。
 
+## 0.2.2-rc.1 移植核对
+
+本次只使用公开 npm registry 的 `@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.1` 构建包，未借用任何内部源码变体。rc.5 补丁不能直接复用：rc.1 的请求上下文转换新增 `updates.systemPromptUpdate === "in-history"` 参数，旧补丁的 payload hunk 会失败。新补丁在新版产物上重新生成，保留该参数、图片请求策略、原生请求 headers 和 replay 链，只增加同等档位逻辑。
+
+- schema 与导出仍采用唯一文本锚点；helper 在 schema 前初始化。
+- 档位在捕获的 profile/model 上解析，在解析凭据前拒绝不支持的协议；无档位时不附加 payload hook。
+- 新版 pi-ai 依赖为 `^1.3.0`，开发测试固定 `1.3.0`。三种协议均实测五个档位与 null 不发送，使用 loopback 假服务截获真实 SDK 请求 body。
+- 新版 Cordis 为 `~4.1.0`、loader/group/include 为 `~1.1.0`、Schemastery 为 `~3.19.0`；开发依赖同步升级，避免混用旧类身份。
+- `listConfigurableProviders()`、`settingsNs/settingsPath`、`settings.describe({ redactSecrets: true })` 与带 revision 的 `settings.mutate()` 在 rc.1 保持兼容，原生设置回归通过。
+
+验证补丁时从仓库根传 `--directory=<解包目录>`，并加 `--verbose` 确认实际检查两个文件；不要只在仓库的忽略缓存子目录执行 `git -C ... apply`，因为路径过滤可能跳过文件而返回成功。示例：
+
+```powershell
+New-Item -ItemType Directory -Force .cache/rc0221/pristine | Out-Null
+npm pack @deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.1 --registry=https://registry.npmjs.org --pack-destination .cache/rc0221 --ignore-scripts
+tar -xf .cache/rc0221/deepseek-ai-dsh-llm-pi-ai-0.2.2-rc.1.tgz -C .cache/rc0221/pristine
+git apply --check --verbose --directory=.cache/rc0221/pristine/package patches/@deepseek-ai__dsh-llm-pi-ai@0.2.2-rc.1.patch
+```
+
 ## 使用 npm 补丁
 
 在实际负责解析原生包的 pnpm 项目中，将版本限定的补丁登记到 `pnpm-workspace.yaml` 的 `patchedDependencies`，再运行 `pnpm install` 并重启 Host：
 
 ```yaml
 patchedDependencies:
-  '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.5': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.5.patch
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.1': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.2-rc.1.patch
 ```
 
-宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` 时，把键与文件都换成对应版本。pnpm 会把「登记了补丁却没有对应依赖版本」当作错误（`ERR_PNPM_UNUSED_PATCH`），所以只登记宿主实际安装的版本；本仓库因此只启用 rc.5 一条，rc.2 至 rc.4 补丁仍随包发布。
+宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` / `0.2.1-rc.5` 时，把键与文件都换成对应版本。pnpm 会把「登记了补丁却没有对应依赖版本」当作错误（`ERR_PNPM_UNUSED_PATCH`），所以只登记宿主实际安装的版本；本仓库因此只启用 `0.2.2-rc.1` 一条，`0.2.1-rc.2` 至 `rc.5` 补丁仍随包发布。
 
 不要手改 `node_modules`；插件自身的开发依赖补丁不等于运行宿主已打补丁。替换补丁内容后，pnpm 可能复用旧的补丁结果，需要删除该包的 `node_modules` 条目或重建依赖树才会重新应用。
 
-参见[插件 README](../README.md)的安装步骤。本仓库的 `npm run check` 使用 `0.2.1-rc.5` 开发依赖与对应补丁；rc.2 至 rc.4 补丁结构与它等价，随包发布供对应版本宿主使用。
+参见[插件 README](../README.md)的安装步骤。本仓库的 `npm run check` 使用 `0.2.2-rc.1` 开发依赖与对应补丁；`0.2.1-rc.2` 至 `rc.5` 补丁功能与它等价，随包发布供对应版本宿主使用。

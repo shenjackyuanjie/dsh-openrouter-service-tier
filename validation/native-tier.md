@@ -1,39 +1,73 @@
 # 当前版本验证状态
 
-验证日期：2026-11-01。插件版本：`0.4.3`。本版跟随宿主新增 `0.2.1-rc.5` 支持：`rc.5` 的 `dsh-llm-pi-ai` 构建产物与 `rc.4` 逐字节相同，补丁内容直接复用，只把 peer 与开发依赖升到 rc.5 并单独成文件。插件运行逻辑、包名与 row id 未改变。
+验证日期：2026-11-08。插件版本：`0.4.4`。目标宿主：`0.2.1-rc.2` 至 `0.2.1-rc.5` 与 `0.2.2-rc.1`。兼容验证只使用 npm 官方发布产物，未混用公开源码树或内部源码变体，未部署、修改运行中 profile 或重启服务；验证通过后按项目既有 GitHub Packages 渠道发布。
 
-## 0.4.3 离线验证
+## 官方 API 与补丁移植
 
-| 检查            | 结果                                                                                                                                                  |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check` | 格式检查、类型检查、构建与 22 项离线测试全部通过                                                                                                      |
-| 支持范围        | peer 接受 `0.2.1-rc.2` 至 `0.2.1-rc.5`；开发依赖与测试使用 rc.5                                                                                       |
-| 宿主补丁        | `patches/` 提供 rc.2 至 rc.5 四套 npm 补丁与 rc.2 源码补丁，rc.5 补丁在 rc.5 原始包上 `git apply --check` 通过                                        |
-| 补丁生效        | 安装后 `node_modules/@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.5/lib/index.js` 中可见档位逻辑（`OPENROUTER_SERVICE_TIERS` 命中 4 处）与 `service_tier` 注入 |
-| zh/en locale    | `meta.title` 均为“OpenRouter 服务等级”，中文说明可通过 `./locale/*.json` 导出读取                                                                     |
-| 共享包与资源    | bundle 和组件使用同一包名，保留原生运行入口；发布白名单包含 locale 与 `./icon` 的 SVG                                                                 |
-| 原创图标        | XML 解析通过，64×64，包内资源，小于 256 KiB，无外部实体或外部图像引用                                                                                 |
+- 官方 `@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.1` tarball 来自 `https://registry.npmjs.org`，npm shasum 为 `2e66d94e5fccb7c14be3380fef7477cb7dff04ba`。
+- 官方基础依赖变化：Cordis `~4.1.0`、loader/group/include `~1.1.0`、Schemastery `~3.19.0`、pi-ai `^1.3.0`；开发环境按对应最低发行版锁定。显式加入 group/include 开发依赖，消除旧锁残留的 1.0.x peers。
+- 已核对 `dsh-llm` 的 `listConfigurableProviders()`、`settingsNs/settingsPath`、`prepareCall()`，`dsh-settings` 的 descriptor/revision 与 `mutate(ns, ops, expectedRevision)`，以及 commands/tools 的注册类型；现有控制流程无需更换 API。
+- rc.5 补丁的 payload hunk 不适用于 rc.1：新版 `toPiContext` 增加 system prompt 原位更新参数。新补丁基于 rc.1 原始构建重新生成，仅修改 `lib/index.js`、`lib/types/config.d.ts`，保留该参数及 headers、图片、replay 原生逻辑。移植与使用步骤见[补丁说明](../patches/README.md)。
+- 能力缺失报错改为要求匹配当前宿主版本的补丁，不再误指向早期 alpha。保留旧宿主 peer 范围及四份旧补丁。
 
-[显示资源测试](../test/metadata.test.mjs) 使用包自身的 exports 解析资源，不激活插件。打包后还应核对实际文件清单，确认 [包清单](../package.json) 中的运行入口、[bundle patch](../cordis.patch.yml)、[中文 locale](../locale/zh.json)、[英文 locale](../locale/en.json)、[图标](../icon.svg) 与 [LICENSE](../LICENSE) 均包含在发布包内。
+## 0.4.4 验证
 
-## 补丁移植要点
+| 检查                                                                                                                          | 结果                                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org`                                       | 锁文件可复现安装，应用 rc.1 专用补丁                                                                                                                                                |
+| `pnpm peers check`                                                                                                            | 无 peer 依赖冲突                                                                                                                                                                    |
+| `npm run check`                                                                                                               | 格式、类型、构建与 26 项离线测试通过                                                                                                                                                |
+| 原有 22 项回归                                                                                                                | 真实 Loader/LLM/PiAiAdapter/Settings，覆盖命令与工具的 revision 冲突、热更新、快照、thinking、工具 replay、凭据边界、取消与超时、429/503 分类、元数据资源                           |
+| 新增三协议测试                                                                                                                | 真实 pi-ai `1.3.0` SDK 向 loopback 假服务发送 Chat Completions、Responses、Anthropic Messages；每种协议分别验证五个档位与 null 不发送，共 18 次请求；另验证其他 provider 不注入档位 |
+| `git apply --check --verbose --directory=.cache/rc0221/pristine/package patches/@deepseek-ai__dsh-llm-pi-ai@0.2.2-rc.1.patch` | 在全新官方原始包上明确检查两个文件，通过                                                                                                                                            |
+| `node --check .cache/rc0221/patched/lib/index.js`                                                                             | 补丁后构建语法通过                                                                                                                                                                  |
+| SHA256 比对                                                                                                                   | 缓存候选与 pnpm 安装后的 `lib/index.js` 逐字节一致                                                                                                                                  |
+| 本地 `npm pack`                                                                                                               | 包含运行入口、bundle、locale、图标、LICENSE 和 rc.1 补丁；解包入口可导入，真实 rc.1 Loader 激活与 loopback flex 请求通过（`node .cache/rc0221/verify-packed.mjs`）                  |
 
-rc.3 的 `llm-pi-ai` 从 2220 行增到 2968 行（合入 replay 模块），rc.2 的补丁无法复用，因此按构建产物为 rc.3 单独移植；rc.4 与 rc.5 的构建产物与 rc.3 结构一致，按同样步骤处理。细节见 [补丁说明](../patches/README.md)：
+官方原始 `lib/index.js` SHA256：`1a3ae58f9b4493e15459cc5000ec80f21b5d3f4a9dea6ffb6bc28e5b8817ae8a`。补丁后及实际安装文件：`c085260ea11146fbf591114da95dec183f0f8879c15b3e71320aaec8f3e7ef75`。
 
-- `OPENROUTER_SERVICE_TIERS` 必须声明在 `profile` schema 之前，否则 schema 求值会触发 TDZ 错误；这一顺序已在补丁中固定。
-- 首次生成时曾漏掉该常量的导出，插件「协议档位与宿主一致」的断言因此失败；补上导出后测试通过。
-- rc.4 与 rc.5 的 `lib/index.js`、`lib/types/config.d.ts` 逐字节相同，`rc.4` 的补丁可直接应用到 `rc.5` 原始包上；补丁仍按版本键分别发布，因为 pnpm 的 `patchedDependencies` 键绑定精确版本。
-- 替换补丁内容后 pnpm 会复用旧的补丁结果，需要重建依赖树才会重新应用。
+## 旧版兼容隔离矩阵
 
-## 已知验证限制
+当前 `0.4.4` 构建在四个官方旧宿主版本上均通过完整 26 项回归，没有运行时兼容修复。原有 peer 支持范围及四份旧补丁保持不变；Cordis 仍包含 `4.0.5`，Schemastery 仍包含 `3.18.5`。
 
-- 22 项离线测试在 rc.5 依赖与补丁上通过，但**没有**在真实的 rc.5 宿主进程里跑过一次实际 OpenRouter 请求；档位注入路径由离线集成测试覆盖。
-- 用户 web profile 目前仍是 `0.2.1-rc.4` 宿主，本轮未安装、启用或卸载该插件的新版本；升级到 rc.5 后需要把 `pnpm-workspace.yaml` 的 `patchedDependencies` 换成 rc.5 补丁并重启 Host。
-- `lib/types/config.d.ts` 只补了公开接口 `PiAiProviderProfile`，Schemastery 推导出的 `Config` 深层类型不含新字段。这是有意的取舍，详见补丁说明。
-- 以下会话快照**未通过**，与宿主默认工具目录差异有关，本轮未修改 baseline：
+复验命令（在项目根运行，需要 Node.js、pnpm 11、git 和 tar；安装只访问官方 npm registry，测试只访问 loopback）：
 
 ```powershell
-pnpm exec vitest run --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts -t pi-ai-replay-metadata
+node scripts/verify-legacy.mjs
+node scripts/verify-legacy.mjs --pi-ai=1.4.0
+# 可只复验指定版本
+node scripts/verify-legacy.mjs 0.2.1-rc.2 --pi-ai=1.4.0
 ```
 
-未执行全量 Harness 测试；真实 Web 启动与付费请求仍未实测。
+[复验脚本](../scripts/verify-legacy.mjs)在忽略目录 `.cache/legacy-matrix/<宿主版本>-pi-<SDK版本>/` 建立各自独立的 manifest、workspace、锁文件与 node_modules；复用完整 [测试夹具](../test/fixtures.mjs) 和全部测试文件。使用当前 build 的发布白名单文件，并校验隔离入口与根构建逐字节一致；不替换现用开发依赖。本次没有重新打 tarball，最终统一打包仍由发布代理执行。
+
+每格都以同版本 commands/credentials/llm/llm-pi-ai/settings/tools 及配套 DSH peers 安装；基础库固定为 Cordis `4.0.5`、loader `1.0.6`、group `1.0.5`、include `1.0.10`、Schemastery `3.18.5`。全部八格 `pnpm peers check` 无冲突。官方原始 tarball 的 SHA1 与 npm shasum 一致，并逐版本执行 `git apply --check --verbose`，再由 pnpm 应用对应版本补丁。
+
+| 官方宿主   | 匹配补丁版本 | pi-ai 1.1.0（官方下界） | pi-ai 1.4.0（旧锁原生实际版本） |
+| ---------- | ------------ | ----------------------- | ------------------------------- |
+| 0.2.1-rc.2 | 0.2.1-rc.2   | 26/26，0 跳过           | 26/26，0 跳过                   |
+| 0.2.1-rc.3 | 0.2.1-rc.3   | 26/26，0 跳过           | 26/26，0 跳过                   |
+| 0.2.1-rc.4 | 0.2.1-rc.4   | 26/26，0 跳过           | 26/26，0 跳过                   |
+| 0.2.1-rc.5 | 0.2.1-rc.5   | 26/26，0 跳过           | 26/26，0 跳过                   |
+
+旧版官方 llm-pi-ai 的 npm shasum：
+
+| 版本       | shasum                                   |
+| ---------- | ---------------------------------------- |
+| 0.2.1-rc.2 | 14aa2d66ea8b02dc15670faea79e1d292251cd9b |
+| 0.2.1-rc.3 | e388d4e1526270fde796cd1953957e30c98a2e10 |
+| 0.2.1-rc.4 | df3bd2fdd193d6c8a1b415fdc5450ab5db4036c9 |
+| 0.2.1-rc.5 | ba113dcf2ce622b2445be0098fdf50dfee08541b |
+
+三种协议均发送五档位及 null/omit，共每格 18 次假服务请求，没有协议跳过。唯一版本化边界是非 OpenRouter provider 的错误档位配置：rc.2 补丁在配置阶段明确拒绝，rc.3/rc.4/rc.5/0.2.2-rc.1 忽略该字段；[协议回归](../test/protocols.test.mjs)读取实际原生版本，分别断言拒绝且零请求或成功发送且不带 service_tier，并输出 rc.2 诊断，不把错误吞掉或静默跳过。
+
+历史版本取自适配前提交 `b3945e8` 的 `git show b3945e8:package.json` 与 `git show b3945e8:pnpm-lock.yaml`：旧根 devDependency 虽为 pi-ai `0.87.1`，adapter 的锁定依赖实际为嵌套 `1.4.0`，不要把两者混淆。官方四个旧 adapter 均要求 `^1.1.0`；额外强制把 adapter 降到 `0.87.1` 的诊断在导入阶段缺少 `getAllBuiltinModels`，该组合不属于官方范围，不作为兼容承诺。没有为此改动旧补丁。
+
+本地证据保留于 `.cache/legacy-matrix-official.log`、`.cache/legacy-matrix-locked-native.log` 及各隔离目录的 `official.json`、`pnpm-lock.yaml`；不纳入提交。修改协议断言后，当前 rc.1 开发环境的 `npm run check` 再次通过，仍为 26/26、0 跳过。
+
+## 验证边界
+
+- 未连接真实 OpenRouter、未发送付费请求、未在真实 Web 宿主进程启用。三协议测试以固定 503 响应检查真实发送 body；Responses/Messages 的成功流解析、计价和服务档位可用性仍需实际服务验收。
+- 当前开发环境固定 pi-ai `1.3.0`；旧宿主已复验 `1.1.0` 与旧锁原生实际 `1.4.0`。其余符合宿主 semver 范围的 SDK 版本未逐一运行。
+- 延续既有声明取舍：补丁只扩展公开 `PiAiProviderProfile` 接口，Schemastery 推导的 `Config` 深层类型不含新字段；配置经原生设置/YAML 写入。
+- 未执行全量 Harness 测试或会话快照；没有改动任何其他项目。

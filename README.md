@@ -11,7 +11,7 @@
 ```powershell
 npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
 npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
-dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.3 --ignore-scripts
+dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.4 --ignore-scripts
 ```
 
 Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从原 npm registry 获取，认证方法参见 [GitHub npm registry 说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。首次安装后需在插件管理器启用该 bundle；安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不会默认把请求改为 flex。更换宿主或插件代码后重启 Host，之后的档位修改通过原生 volatile 热更新生效。
@@ -19,7 +19,7 @@ Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从�
 本地 tarball 安装不需要 GitHub 认证（先 `npm run build` 产出 `lib/`，再打包得到 tarball）：
 
 ```powershell
-dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.3.tgz --ignore-scripts
+dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.4.tgz --ignore-scripts
 ```
 
 ## 展示
@@ -30,15 +30,15 @@ dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier
 
 ## 宿主要求
 
-- 支持宿主 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4` 与 `0.2.1-rc.5`，每个版本都需要匹配版本的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。`0.2.1-rc.5` 的 `dsh-llm-pi-ai` 构建产物与 `rc.4` 逐字节相同，两者补丁内容一致，只是版本键不同。未打补丁时命令与工具会明确拒绝，不会假报配置成功。
+- 支持宿主 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4`、`0.2.1-rc.5` 与 `0.2.2-rc.1`，每个版本都需要匹配版本的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。`0.2.1-rc.5` 的 `dsh-llm-pi-ai` 构建产物与 `rc.4` 逐字节相同，两者补丁内容一致，只是版本键不同。未打补丁时命令与工具会明确拒绝，不会假报配置成功。
 - 补丁登记在实际解析 `@deepseek-ai/dsh-llm-pi-ai` 的 pnpm 项目中，运行 `pnpm install` 并重启 Host：
 
 ```yaml
 patchedDependencies:
-  '@deepseek-ai/dsh-llm-pi-ai@0.2.1-rc.5': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.1-rc.5.patch
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.1': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.2-rc.1.patch
 ```
 
-宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` 时，键与文件都换成对应版本。只登记宿主实际安装的版本（pnpm 会把没有对应依赖的补丁登记报错），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
+宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` / `0.2.1-rc.5` 时，键与文件都换成对应版本。只登记宿主实际安装的版本（pnpm 会把没有对应依赖的补丁登记报错），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
 
 ## 使用
 
@@ -86,7 +86,7 @@ patchedDependencies:
 
 ## 开发与验证
 
-要求 Node `>=22.19.0`，开发使用 pnpm 11；开发依赖与离线测试固定 `0.2.1-rc.5` 及对应补丁，不改变用户宿主。
+要求 Node `>=22.19.0`，开发使用 pnpm 11；开发依赖与离线测试固定 `0.2.2-rc.1` 及对应补丁（Cordis `4.1.0`、loader/group/include `1.1.0`、Schemastery `3.19.0`、pi-ai `1.3.0`），不改变用户宿主。
 
 ```powershell
 pnpm install --frozen-lockfile --ignore-scripts
