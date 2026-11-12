@@ -2,6 +2,49 @@
 
 验证日期：2026-11-08。插件版本：`0.4.4`。目标宿主：`0.2.1-rc.2` 至 `0.2.1-rc.5` 与 `0.2.2-rc.1`。兼容验证只使用 npm 官方发布产物，未混用公开源码树或内部源码变体，未部署、修改运行中 profile 或重启服务；验证通过后按项目既有 GitHub Packages 渠道发布。
 
+## 0.4.5 验证（0.2.2-rc.1 与 rc.2 双版本）
+
+验证日期：2026-11-12。插件版本：`0.4.5`。目标宿主：`0.2.2-rc.1` 与 `0.2.2-rc.2`，并保留 0.2.1-rc.2 至 rc.5 的既有支持。全部素材来自 `https://registry.npmjs.org` 公开 tarball。
+
+### 产物与哈希
+
+| 项目                                  | 值                                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------------- |
+| `dsh-llm-pi-ai@0.2.2-rc.1` npm shasum | `2e66d94e5fccb7c14be3380fef7477cb7dff04ba`                                         |
+| `dsh-llm-pi-ai@0.2.2-rc.2` npm shasum | `c73444916c4647bd8df1292d8820cf88c87da046`                                         |
+| rc.1 原始 `lib/index.js` SHA256       | `1a3ae58f9b4493e15459cc5000ec80f21b5d3f4a9dea6ffb6bc28e5b8817ae8a`                 |
+| rc.2 原始 `lib/index.js` SHA256       | `e956da3d7300e1426e13e14f47e6f981dd1ca345633a406568ee5058ad93e9d8`                 |
+| rc.2 打补丁后 `lib/index.js` SHA256   | `1f48d3f59f2fe9b184c9ac7cd2e01941e78bbb7079b76301ff9da9175791ebb8`，与本地安装一致 |
+
+### 上游变化与适配
+
+- rc.2 在请求准备阶段新增 Anthropic thinking 的请求前缀绑定：`bindThinkingToPrefix`、`prefixDigests`，并在 replay 状态写入 `prefixDigest`。
+- rc.2 改为按前导 HTTP 状态码分类 pi-ai 错误；配额、限流等措辞规则继续读取完整信息。
+- rc.1 补丁第三个 hunk 依赖 rc.1 的请求转换调用形状，在 rc.2 上不适用；rc.2 补丁基于新产物重新生成。
+- 新补丁从捕获的 profile 解析档位（位于 profile/model 之后、`bindThinkingToPrefix` 之前），请求 body 注入在绑定之后，通过 `onPayload` 写入顶层 `service_tier`；不改写 thinking 与 replay 数据。插件源码无需修改。
+
+### 检查与结果
+
+| 检查                                                   | 结果                                                                                                               |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `git apply --check --verbose`：rc.1 补丁 × rc.1 原始包 | 通过，两个文件命中                                                                                                 |
+| `git apply --check --verbose`：rc.2 补丁 × rc.2 原始包 | 通过，两个文件命中                                                                                                 |
+| `git apply --check`：rc.1 补丁 × rc.2 原始包           | 失败，符合预期：请求准备段已变化                                                                                   |
+| `npm run typecheck`（rc.2 开发依赖）                   | 通过                                                                                                               |
+| `npm test`（rc.2 开发依赖）                            | 26/26 通过，0 跳过                                                                                                 |
+| `npm run test:matrix`（0.2.2-rc.1）                    | 26/26 通过，0 跳过                                                                                                 |
+| `npm run test:matrix`（0.2.2-rc.2）                    | 26/26 通过，0 跳过                                                                                                 |
+| 补丁生效断言                                           | 两版均含 `OPENROUTER_SERVICE_TIERS`；`bindThinkingToPrefix` 仅出现在 rc.2                                          |
+| 顺序断言                                               | 档位 `onPayload` 位于 `streamSimple` 选项内；rc.2 中 `bindThinkingToPrefix` 先于档位注入，并把 digest 传给流式转换 |
+
+双版本矩阵使用 `scripts/verify-rc0222.mjs`：为每个宿主版本建立独立目录，安装同版本 `commands`、`credentials`、`llm`、`llm-pi-ai`、`settings`、`tools`，固定 Cordis `4.1.0`、loader/group/include `1.1.0`、Schemastery `3.19.0`、pi-ai `1.3.0`，并用 `pnpm peers check` 核对。
+
+### 验证边界
+
+- 未连接真实 OpenRouter，未发送付费请求；三协议测试使用 loopback 假服务截获真实 SDK 请求 body。
+- 未在真实 Web 宿主进程启用插件，未部署或重启服务。
+- 0.2.1-rc.2 至 rc.5 的旧补丁与旧矩阵未在本次重跑。
+
 ## 官方 API 与补丁移植
 
 - 官方 `@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.1` tarball 来自 `https://registry.npmjs.org`，npm shasum 为 `2e66d94e5fccb7c14be3380fef7477cb7dff04ba`。
