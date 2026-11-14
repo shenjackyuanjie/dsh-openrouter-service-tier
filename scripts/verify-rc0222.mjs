@@ -5,15 +5,15 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// 双版本回归：0.2.2-rc.1 与 0.2.2-rc.2 各自使用官方 tarball、匹配补丁和独立依赖树。
+// 三版本回归：0.2.2-rc.1、rc.2 与 rc.3 各自使用官方 tarball、匹配补丁和独立依赖树。
 // 只写入被忽略的 .cache 目录，不修改开发依赖、profile 或真实上游。
 const project = fileURLToPath(new URL('../', import.meta.url));
 const manifest = JSON.parse(await readFile(path.join(project, 'package.json'), 'utf8'));
 const versions = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
-if (!versions.length) versions.push('0.2.2-rc.1', '0.2.2-rc.2');
+if (!versions.length) versions.push('0.2.2-rc.1', '0.2.2-rc.2', '0.2.2-rc.3');
 assert.ok(
-  versions.every((v) => /^0\.2\.2-rc\.[12]$/.test(v)),
-  '仅支持 0.2.2-rc.1 与 0.2.2-rc.2',
+  versions.every((v) => /^0\.2\.2-rc\.[123]$/.test(v)),
+  '仅支持 0.2.2-rc.1、0.2.2-rc.2 与 0.2.2-rc.3',
 );
 const base = {
   '@deepseek-ai/cordis': '4.1.0',
@@ -109,21 +109,21 @@ for (const version of versions) {
       native.indexOf('...serviceTier === void 0 ? {} : { onPayload:'),
     '档位 hook 必须位于 streamSimple 选项内',
   );
-  if (version === '0.2.2-rc.2') {
+  if (version !== '0.2.2-rc.1') {
     assert.ok(
       native.indexOf('const { context, digest } = bindThinkingToPrefix(') <
         native.indexOf('...serviceTier === void 0 ? {} : { onPayload:'),
-      'rc.2 的 thinking 前缀绑定必须先于档位注入',
+      version + ' 的 thinking 前缀绑定必须先于档位注入',
     );
     assert.ok(
       native.includes('model.contextWindow, options.signal, model.id, digest)'),
-      'rc.2 必须把 prefix digest 传给流式转换',
+      version + ' 必须把 prefix digest 传给流式转换',
     );
   }
   assert.equal(
     native.includes('bindThinkingToPrefix'),
-    version === '0.2.2-rc.2',
-    'rc.2 必须保留 thinking 前缀绑定，rc.1 不含该函数',
+    version !== '0.2.2-rc.1',
+    'rc.2 与 rc.3 必须保留 thinking 前缀绑定，rc.1 不含该函数',
   );
   const tests = (await readdir(path.join(target, 'test')))
     .filter((file) => file.endsWith('.test.mjs'))

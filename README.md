@@ -11,7 +11,7 @@
 ```powershell
 npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
 npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
-dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.5 --ignore-scripts
+dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.6 --ignore-scripts
 ```
 
 Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从原 npm registry 获取，认证方法参见 [GitHub npm registry 说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。首次安装后需在插件管理器启用该 bundle；安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不会默认把请求改为 flex。更换宿主或插件代码后重启 Host，之后的档位修改通过原生 volatile 热更新生效。
@@ -19,7 +19,7 @@ Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从�
 本地 tarball 安装不需要 GitHub 认证（先 `npm run build` 产出 `lib/`，再打包得到 tarball）：
 
 ```powershell
-dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.5.tgz --ignore-scripts
+dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.6.tgz --ignore-scripts
 ```
 
 ## 展示
@@ -30,15 +30,15 @@ dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier
 
 ## 宿主要求
 
-- 支持宿主 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4`、`0.2.1-rc.5`、`0.2.2-rc.1` 与 `0.2.2-rc.2`，每个版本都需要匹配版本的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。`0.2.1-rc.5` 的 `dsh-llm-pi-ai` 构建产物与 `rc.4` 逐字节相同，两者补丁内容一致，只是版本键不同。未打补丁时命令与工具会明确拒绝，不会假报配置成功。
+- 支持宿主 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4`、`0.2.1-rc.5`、`0.2.2-rc.1`、`0.2.2-rc.2` 与 `0.2.2-rc.3`，每个版本都需要匹配版本的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。`0.2.1-rc.5` 的 `dsh-llm-pi-ai` 构建产物与 `rc.4` 逐字节相同，两者补丁内容一致，只是版本键不同；`0.2.2-rc.3` 的产物与 `0.2.2-rc.2` 逐字节相同，同样只是版本键不同。未打补丁时命令与工具会明确拒绝，不会假报配置成功。
 - 补丁登记在实际解析 `@deepseek-ai/dsh-llm-pi-ai` 的 pnpm 项目中，运行 `pnpm install` 并重启 Host：
 
 ```yaml
 patchedDependencies:
-  '@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.2': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.2-rc.2.patch
+  '@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.3': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.2-rc.3.patch
 ```
 
-宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` / `0.2.1-rc.5` / `0.2.2-rc.1` 时，键与文件都换成对应版本；`0.2.2-rc.1` 继续使用 `@0.2.2-rc.1.patch`。只登记宿主实际安装的版本（pnpm 会把没有对应依赖的补丁登记报错），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
+宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` / `0.2.1-rc.5` / `0.2.2-rc.1` / `0.2.2-rc.2` 时，键与文件都换成对应版本；`0.2.2-rc.1` 继续使用 `@0.2.2-rc.1.patch`，`0.2.2-rc.2` 与 `0.2.2-rc.3` 各用同名补丁文件。只登记宿主实际安装的版本（pnpm 会把没有对应依赖的补丁登记报错），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
 
 ## 使用
 
@@ -86,29 +86,29 @@ patchedDependencies:
 
 ## 升级
 
-### 插件 0.4.4 → 0.4.5
+### 插件 0.4.5 → 0.4.6
 
-1. 安装新版本 tgz，或按上面的命令安装 `@0.4.5`。
+1. 安装新版本 tgz，或按上面的命令安装 `@0.4.6`。
 2. 在插件管理器中停用再启用该 bundle，让前端与命令重新加载。
 
-### 宿主 0.2.2-rc.1 → 0.2.2-rc.2
+### 宿主 0.2.2-rc.2 → 0.2.2-rc.3
 
-1. 升级宿主后，把 pnpm 项目里 `patchedDependencies` 的键与文件从 `0.2.2-rc.1` 换成 `0.2.2-rc.2`，只保留宿主实际安装的那一条。
-2. 运行 `pnpm install`；补丁内容随后发生变化的包需要重建依赖树，pnpm 才会重新应用补丁。
+1. 升级宿主后，把 pnpm 项目里 `patchedDependencies` 的键与文件从 `0.2.2-rc.2` 换成 `0.2.2-rc.3`，只保留宿主实际安装的那一条。
+2. 运行 `pnpm install`。`0.2.2-rc.3` 的 `dsh-llm-pi-ai` 产物与 `0.2.2-rc.2` 逐字节相同，补丁内容一致，只是 pnpm 的补丁键绑定精确版本号。
 3. 重启 Host，执行 `/openrouter-tier` 确认档位可读写。
 
-rc.2 补丁基于新产物重新生成：rc.2 在请求准备阶段新增 Anthropic thinking 的请求前缀绑定；档位从捕获的 profile 解析，请求 body 注入在绑定之后，由 `streamSimple` 的 `onPayload` 写入 `service_tier`。两者互不改写对方的请求上下文。
+rc.1 → rc.2 的补丁重生成历史见 [补丁说明](./patches/README.md)：rc.2 在请求准备阶段新增 Anthropic thinking 的请求前缀绑定；档位从捕获的 profile 解析，请求 body 注入在绑定之后，由 `streamSimple` 的 `onPayload` 写入 `service_tier`。两者互不改写对方的请求上下文。rc.3 沿用同一份补丁内容。
 
 ## 开发与验证
 
-要求 Node `>=22.19.0`，开发使用 pnpm 11；开发依赖与离线测试固定 `0.2.2-rc.2` 及对应补丁（Cordis `4.1.0`、loader/group/include `1.1.0`、Schemastery `3.19.0`、pi-ai `1.3.0`），不改变用户宿主。
+要求 Node `>=22.19.0`，开发使用 pnpm 11；开发依赖与离线测试固定 `0.2.2-rc.3` 及对应补丁（Cordis `4.1.0`、loader/group/include `1.1.0`、Schemastery `3.19.0`、pi-ai `1.3.0`），不改变用户宿主。
 
 ```powershell
 pnpm install --frozen-lockfile --ignore-scripts
 npm run check
 ```
 
-`npm run check` 覆盖 rc.2；`npm run test:matrix` 用官方 tarball 在隔离目录分别跑 `0.2.2-rc.1` 与 `0.2.2-rc.2`。`npm run check` 依次执行 `format:check`（Prettier 格式检查）、`typecheck`（类型检查）与离线测试（构建后 `node --test`，覆盖 Loader / LLM / Settings 回归与 zh/en locale、图标等显示资源）。改写格式运行 `npm run format`。真实宿主与请求的验收记录见 [validation/native-tier.md](./validation/native-tier.md)。
+`npm run check` 覆盖 rc.3；`npm run test:matrix` 用官方 tarball 在隔离目录分别跑 `0.2.2-rc.1`、`0.2.2-rc.2` 与 `0.2.2-rc.3`。`npm run check` 依次执行 `format:check`（Prettier 格式检查）、`typecheck`（类型检查）与离线测试（构建后 `node --test`，覆盖 Loader / LLM / Settings 回归与 zh/en locale、图标等显示资源）。改写格式运行 `npm run format`。真实宿主与请求的验收记录见 [validation/native-tier.md](./validation/native-tier.md)。
 
 ## 许可证
 
