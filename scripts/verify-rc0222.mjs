@@ -5,15 +5,16 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// 三版本回归：0.2.2-rc.1、rc.2 与 rc.3 各自使用官方 tarball、匹配补丁和独立依赖树。
+// 0.2.2-rc.1 至 rc.5 各自使用同一插件发布 tarball、官方宿主包、匹配补丁和独立依赖树。
 // 只写入被忽略的 .cache 目录，不修改开发依赖、profile 或真实上游。
 const project = fileURLToPath(new URL('../', import.meta.url));
 const manifest = JSON.parse(await readFile(path.join(project, 'package.json'), 'utf8'));
 const versions = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
-if (!versions.length) versions.push('0.2.2-rc.1', '0.2.2-rc.2', '0.2.2-rc.3');
+if (!versions.length)
+  versions.push('0.2.2-rc.1', '0.2.2-rc.2', '0.2.2-rc.3', '0.2.2-rc.4', '0.2.2-rc.5');
 assert.ok(
-  versions.every((v) => /^0\.2\.2-rc\.[123]$/.test(v)),
-  '仅支持 0.2.2-rc.1、0.2.2-rc.2 与 0.2.2-rc.3',
+  versions.every((v) => /^0\.2\.2-rc\.[1-5]$/.test(v)),
+  '仅支持 0.2.2-rc.1 至 0.2.2-rc.5',
 );
 const base = {
   '@deepseek-ai/cordis': '4.1.0',
@@ -33,13 +34,22 @@ function run(command, args, cwd) {
   if (result.error) throw result.error;
   assert.equal(result.status, 0, command + ' ' + args.join(' '));
 }
-run('npm', ['run', 'build'], project);
+const matrix = path.join(project, '.cache', 'matrix-022');
+await mkdir(matrix, { recursive: true });
+const packed = path.join(matrix, 'package');
+await mkdir(packed, { recursive: true });
+run('npm', ['pack', '--pack-destination', '.cache/matrix-022'], project);
+const packName =
+  manifest.name.replace(/^@/, '').replace('/', '-') + '-' + manifest.version + '.tgz';
+run('tar', ['-xf', packName], matrix);
+assert.deepEqual(JSON.parse(await readFile(path.join(packed, 'package.json'), 'utf8')), manifest);
 for (const version of versions) {
-  const target = path.join(project, '.cache', 'matrix-022', version);
+  const target = path.join(matrix, version);
   await mkdir(target, { recursive: true });
-  for (const file of [...manifest.files, 'test']) {
-    await cp(path.join(project, file), path.join(target, file), { recursive: true });
+  for (const file of manifest.files) {
+    await cp(path.join(packed, file), path.join(target, file), { recursive: true });
   }
+  await cp(path.join(project, 'test'), path.join(target, 'test'), { recursive: true });
   const dependencies = { ...base };
   for (const name of ['commands', 'credentials', 'llm', 'llm-pi-ai', 'settings', 'tools']) {
     dependencies['@deepseek-ai/dsh-' + name] = version;
@@ -104,17 +114,12 @@ for (const version of versions) {
     'utf8',
   );
   assert.ok(native.includes('OPENROUTER_SERVICE_TIERS'), '档位补丁必须生效');
-  assert.ok(
-    native.indexOf('snapshot.models.streamSimple(model, context, {') <
-      native.indexOf('...serviceTier === void 0 ? {} : { onPayload:'),
-    '档位 hook 必须位于 streamSimple 选项内',
-  );
+  const stream = native.indexOf('snapshot.models.streamSimple(model, context, {');
+  const payloadHook = native.indexOf('...serviceTier === void 0 ? {} : { onPayload:');
+  assert.ok(stream >= 0 && stream < payloadHook, '档位 hook 必须位于 streamSimple 选项内');
   if (version !== '0.2.2-rc.1') {
-    assert.ok(
-      native.indexOf('const { context, digest } = bindThinkingToPrefix(') <
-        native.indexOf('...serviceTier === void 0 ? {} : { onPayload:'),
-      version + ' 的 thinking 前缀绑定必须先于档位注入',
-    );
+    const binding = native.indexOf('const { context, digest } = bindThinkingToPrefix(');
+    assert.ok(binding >= 0 && binding < stream, version + ' 的 thinking 前缀绑定必须先于档位注入');
     assert.ok(
       native.includes('model.contextWindow, options.signal, model.id, digest)'),
       version + ' 必须把 prefix digest 传给流式转换',
@@ -123,7 +128,7 @@ for (const version of versions) {
   assert.equal(
     native.includes('bindThinkingToPrefix'),
     version !== '0.2.2-rc.1',
-    'rc.2 与 rc.3 必须保留 thinking 前缀绑定，rc.1 不含该函数',
+    'rc.2 至 rc.5 必须保留 thinking 前缀绑定，rc.1 不含该函数',
   );
   const tests = (await readdir(path.join(target, 'test')))
     .filter((file) => file.endsWith('.test.mjs'))

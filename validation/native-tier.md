@@ -153,3 +153,23 @@ node scripts/verify-legacy.mjs 0.2.1-rc.2 --pi-ai=1.4.0
 - 当前开发环境固定 pi-ai `1.3.0`；旧宿主已复验 `1.1.0` 与旧锁原生实际 `1.4.0`。其余符合宿主 semver 范围的 SDK 版本未逐一运行。
 - 延续既有声明取舍：补丁只扩展公开 `PiAiProviderProfile` 接口，Schemastery 推导的 `Config` 深层类型不含新字段；配置经原生设置/YAML 写入。
 - 未执行全量 Harness 测试或会话快照；没有改动任何其他项目。
+
+## 0.4.7 验证（0.2.2-rc.4 与 rc.5）
+
+验证日期：2026-11-18。插件版本：`0.4.7`。目标宿主：`0.2.2-rc.4` 与 `0.2.2-rc.5`，并保留既有 rc.1 至 rc.3 及 0.2.1 rc.2 至 rc.5 支持。
+
+### 官方产物 ABI 证据
+
+- `@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.4`：npm shasum `dbaddfdd1750317561590506d642b09472d0fc7f`，tarball [官方地址](https://registry.npmjs.org/@deepseek-ai/dsh-llm-pi-ai/-/dsh-llm-pi-ai-0.2.2-rc.4.tgz)。
+- `@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.5`：npm shasum `86ecd0d692ace41779658e5dcb133ac6806cbc85`，tarball [官方地址](https://registry.npmjs.org/@deepseek-ai/dsh-llm-pi-ai/-/dsh-llm-pi-ai-0.2.2-rc.5.tgz)。
+- 两版 `lib/index.js` SHA-256 均为 `e956da3d7300e1426e13e14f47e6f981dd1ca345633a406568ee5058ad93e9d8`，`lib/types/config.d.ts` SHA-256 均为 `fa6a512f674e1d7dd99f3ece77a409b49c1d1488b0dd62cb6f5be2df404c7a3e`，与 rc.3 逐字节一致。
+- 因此档位补丁内容可复用，但仍提供 rc.4、rc.5 两个独立文件，以匹配 pnpm 精确版本键；未修改插件运行源码。
+
+### 兼容验证
+
+- `git apply --check --verbose` 在两版全新官方 tarball 上命中 `lib/index.js` 与 `lib/types/config.d.ts`。
+- 两版补丁均断言包含 `OPENROUTER_SERVICE_TIERS`，`streamSimple` 的 `onPayload` 位于正确选项位置；rc.4/rc.5 保留 `bindThinkingToPrefix`，且 thinking 前缀绑定先于档位注入。
+- `npm run check` 使用 rc.5 开发依赖通过：Prettier、TypeScript、构建及 26/26 离线测试；覆盖 Chat Completions、Responses、Anthropic Messages 的五档位、omit、thinking、工具 replay、设置 revision、取消、重试及资源元数据。
+- `npm run test:matrix` 使用 0.4.7 发布 tarball（npm pack shasum `93090590137531b3df377dcf9de7d7656ad71440`）与五版官方宿主依赖树，逐版本检查 npm shasum、依赖版本、补丁生效及全部离线测试；rc.1 至 rc.5 均 26/26 通过、0 失败、0 跳过。
+
+验证边界：未连接真实 OpenRouter、未发送付费请求、未在用户运行中的 Host 安装或修改配置；协议请求使用 loopback 假服务。

@@ -1,15 +1,15 @@
 # 原生宿主补丁
 
-同时提供 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4`、`0.2.1-rc.5`、`0.2.2-rc.1`、`0.2.2-rc.2` 与 `0.2.2-rc.3` 七套，各自对应一个宿主版本，不混用：
+同时提供 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4`、`0.2.1-rc.5`、`0.2.2-rc.1`、`0.2.2-rc.2`、`0.2.2-rc.3`、`0.2.2-rc.4` 与 `0.2.2-rc.5` 十套，各自对应一个宿主版本，不混用：
 
 - `@deepseek-ai__dsh-llm-pi-ai@<版本>.patch`：原始 npm 包的固定版本 package-manager patch，只改 `lib/index.js` 与类型声明，不更换宿主其他包。
 - `llm-pi-ai-0.2.1-rc.2.source.patch`：rc.2 对应的公开源码改法（配置、原生 adapter、双语 README 与离线回归用例）。rc.3 及之后的版本没有可用的源码级 patch，改法记录在下文。
 
-宿主升级到新版本后需要重新生成对应补丁，不要用旧版本的补丁去 patch 新版本。`0.2.1-rc.5` 的 `lib/index.js` 与 `lib/types/config.d.ts` 与 `rc.4` 逐字节相同，因此 `rc.5` 补丁内容与 `rc.4` 一致；`0.2.2-rc.3` 的这两个文件同样与 `0.2.2-rc.2` 逐字节相同，补丁内容一致。仍单独成文件，是因为 pnpm 的 `patchedDependencies` 键绑定精确版本，混用会命中不上。请求 tier 使用 OpenRouter 文档支持的五个协议值；Chat Completions、Responses、Messages 均保留原生链。
+宿主升级到新版本后需要重新生成对应补丁，不要用旧版本的补丁去 patch 新版本。`0.2.1-rc.5` 的 `lib/index.js` 与 `lib/types/config.d.ts` 与 `rc.4` 逐字节相同，因此 `rc.5` 补丁内容与 `rc.4` 一致；`0.2.2-rc.3`、`0.2.2-rc.4` 与 `0.2.2-rc.5` 的这两个文件逐字节相同，补丁内容一致。仍单独成文件，是因为 pnpm 的 `patchedDependencies` 键绑定精确版本，混用会命中不上。请求 tier 使用 OpenRouter 文档支持的五个协议值；Chat Completions、Responses、Messages 均保留原生链。
 
 ## 补丁做了什么
 
-七套补丁功能等价，差别只在构建产物结构：
+十套补丁功能等价，差别只在构建产物结构：
 
 1. 在 profile schema 之前加入档位选择逻辑（`OPENROUTER_SERVICE_TIERS`、`openRouterTierFor`、`supportsOpenRouterTier`）；其中 `OPENROUTER_SERVICE_TIERS` 从包导出，供插件断言协议档位一致。
 2. `profile` schema 增加 `serviceTier`（五个协议值或 null）与 `modelServiceTiers`（`[{ model, tier }]`，另允许 `omit`）。
@@ -93,8 +93,8 @@ patchedDependencies:
   '@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.1': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.2-rc.1.patch
 ```
 
-宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` / `0.2.1-rc.5` / `0.2.2-rc.1` / `0.2.2-rc.2` 时，把键与文件都换成对应版本。pnpm 会把「登记了补丁却没有对应依赖版本」当作错误（`ERR_PNPM_UNUSED_PATCH`），所以只登记宿主实际安装的版本；本仓库因此只启用 `0.2.2-rc.3` 一条，`0.2.1-rc.2` 至 `rc.5`、`0.2.2-rc.1` 与 `rc.2` 的补丁仍随包发布。
+宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` / `0.2.1-rc.5` / `0.2.2-rc.1` / `0.2.2-rc.2` / `0.2.2-rc.3` / `0.2.2-rc.4` / `0.2.2-rc.5` 时，把键与文件都换成对应版本。pnpm 会把「登记了补丁却没有对应依赖版本」当作错误（`ERR_PNPM_UNUSED_PATCH`），所以只登记宿主实际安装的版本；本仓库开发验证启用 `0.2.2-rc.5`，其余版本补丁仍随包发布。
 
 不要手改 `node_modules`；插件自身的开发依赖补丁不等于运行宿主已打补丁。替换补丁内容后，pnpm 可能复用旧的补丁结果，需要删除该包的 `node_modules` 条目或重建依赖树才会重新应用。
 
-参见[插件 README](../README.md)的安装步骤。本仓库的 `npm run check` 使用 `0.2.2-rc.3` 开发依赖与对应补丁；`npm run test:matrix` 另行覆盖 `0.2.2-rc.1` 与 `0.2.2-rc.2`。其余版本补丁功能等价，随包发布供对应版本宿主使用。
+参见[插件 README](../README.md)的安装步骤。本仓库的 `npm run check` 使用 `0.2.2-rc.5` 开发依赖与对应补丁；`npm run test:matrix` 覆盖 `0.2.2-rc.1` 至 `0.2.2-rc.5`。rc.4 与 rc.5 使用基于相同官方产物生成的独立版本键补丁；其余版本补丁功能等价，随包发布供对应版本宿主使用。
