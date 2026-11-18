@@ -170,6 +170,6 @@ node scripts/verify-legacy.mjs 0.2.1-rc.2 --pi-ai=1.4.0
 - `git apply --check --verbose` 在两版全新官方 tarball 上命中 `lib/index.js` 与 `lib/types/config.d.ts`。
 - 两版补丁均断言包含 `OPENROUTER_SERVICE_TIERS`，`streamSimple` 的 `onPayload` 位于正确选项位置；rc.4/rc.5 保留 `bindThinkingToPrefix`，且 thinking 前缀绑定先于档位注入。
 - `npm run check` 使用 rc.5 开发依赖通过：Prettier、TypeScript、构建及 26/26 离线测试；覆盖 Chat Completions、Responses、Anthropic Messages 的五档位、omit、thinking、工具 replay、设置 revision、取消、重试及资源元数据。
-- `npm run test:matrix` 使用 0.4.7 发布 tarball（npm pack shasum `93090590137531b3df377dcf9de7d7656ad71440`）与五版官方宿主依赖树，逐版本检查 npm shasum、依赖版本、补丁生效及全部离线测试；rc.1 至 rc.5 均 26/26 通过、0 失败、0 跳过。
+- `npm run test:matrix` 使用本地 0.4.7 矩阵 tarball（npm pack shasum `93090590137531b3df377dcf9de7d7656ad71440`）与五版官方宿主依赖树，逐版本检查 npm shasum、依赖版本、补丁生效及全部离线测试；rc.1 至 rc.5 均 26/26 通过、0 失败、0 跳过。正式发布包远端 shasum 为 `72320428a65ce1eaddd1d9b3e08b38519a9a20b5`，integrity 为 `sha512-22Vz2CTI9dMzyxMLjmkRmlD3G74FULUtqIBU8tImW578vPPtIiRBlsB/FRgJqITbAItgMxo1xWh0B/ivUQhtMA==`。
 
 验证边界：未连接真实 OpenRouter、未发送付费请求、未在用户运行中的 Host 安装或修改配置；协议请求使用 loopback 假服务。
