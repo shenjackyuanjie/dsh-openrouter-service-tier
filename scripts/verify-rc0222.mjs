@@ -1,22 +1,32 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cp, mkdir, readFile, writeFile, readdir, realpath } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, writeFile, readdir, realpath } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// 0.2.2-rc.1 至 rc.5 各自使用同一插件发布 tarball、官方宿主包、匹配补丁和独立依赖树。
+// 各版本使用同一插件候选 tarball、官方宿主包、匹配补丁和独立依赖树。
 // 只写入被忽略的 .cache 目录，不修改开发依赖、profile 或真实上游。
 const project = fileURLToPath(new URL('../', import.meta.url));
 const manifest = JSON.parse(await readFile(path.join(project, 'package.json'), 'utf8'));
-const versions = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
-if (!versions.length)
-  versions.push('0.2.2-rc.1', '0.2.2-rc.2', '0.2.2-rc.3', '0.2.2-rc.4', '0.2.2-rc.5');
+const supported = [
+  '0.2.2-rc.1',
+  '0.2.2-rc.2',
+  '0.2.2-rc.3',
+  '0.2.2-rc.4',
+  '0.2.2-rc.5',
+  '0.2.3-alpha.1',
+  '0.2.3-alpha.2',
+];
+const args = process.argv.slice(2);
+// alpha.1 的官方 npm 依赖无法启动；显式传版本可复现上游故障。
+const versions = args.length ? args : supported.filter((v) => v !== '0.2.3-alpha.1');
 assert.ok(
-  versions.every((v) => /^0\.2\.2-rc\.[1-5]$/.test(v)),
-  '仅支持 0.2.2-rc.1 至 0.2.2-rc.5',
+  versions.every((v) => supported.includes(v)),
+  '仅支持 ' + supported.join('、'),
 );
-const base = {
+const rcBase = {
   '@deepseek-ai/cordis': '4.1.0',
   '@deepseek-ai/cordis-plugin-loader': '1.1.0',
   '@deepseek-ai/cordis-plugin-group': '1.1.0',
@@ -36,14 +46,30 @@ function run(command, args, cwd) {
 }
 const matrix = path.join(project, '.cache', 'matrix-022');
 await mkdir(matrix, { recursive: true });
-const packed = path.join(matrix, 'package');
-await mkdir(packed, { recursive: true });
+const extraction = await mkdtemp(path.join(matrix, 'pack-'));
+const packed = path.join(extraction, 'package');
 run('npm', ['pack', '--pack-destination', '.cache/matrix-022'], project);
 const packName =
   manifest.name.replace(/^@/, '').replace('/', '-') + '-' + manifest.version + '.tgz';
-run('tar', ['-xf', packName], matrix);
+run('tar', ['-xf', packName, '-C', path.basename(extraction)], matrix);
 assert.deepEqual(JSON.parse(await readFile(path.join(packed, 'package.json'), 'utf8')), manifest);
+assert.deepEqual(
+  (await readdir(path.join(packed, 'patches'))).sort(),
+  ['README.md', ...supported.map((v) => `@deepseek-ai__dsh-llm-pi-ai@${v}.patch`)].sort(),
+  '归档只应包含当前宿主精确版本的补丁',
+);
 for (const version of versions) {
+  const base =
+    version === '0.2.3-alpha.2'
+      ? {
+          ...rcBase,
+          '@deepseek-ai/cordis': '4.2.0-alpha.1',
+          '@deepseek-ai/cordis-plugin-loader': '1.2.0-alpha.1',
+          '@deepseek-ai/cordis-plugin-group': '1.2.0-alpha.1',
+          '@deepseek-ai/cordis-plugin-include': '1.2.0-alpha.1',
+          '@deepseek-ai/schemastery': '3.20.0-alpha.1',
+        }
+      : rcBase;
   const target = path.join(matrix, version);
   await mkdir(target, { recursive: true });
   for (const file of manifest.files) {
@@ -51,7 +77,15 @@ for (const version of versions) {
   }
   await cp(path.join(project, 'test'), path.join(target, 'test'), { recursive: true });
   const dependencies = { ...base };
-  for (const name of ['commands', 'credentials', 'llm', 'llm-pi-ai', 'settings', 'tools']) {
+  for (const name of [
+    'app-boot',
+    'commands',
+    'credentials',
+    'llm',
+    'llm-pi-ai',
+    'settings',
+    'tools',
+  ]) {
     dependencies['@deepseek-ai/dsh-' + name] = version;
   }
   const patch = 'patches/@deepseek-ai__dsh-llm-pi-ai@' + version + '.patch';
@@ -72,11 +106,20 @@ for (const version of versions) {
         .join('\n') +
       '\n',
   );
-  const metadata = await (
-    await fetch('https://registry.npmjs.org/@deepseek-ai%2fdsh-llm-pi-ai/' + version)
-  ).json();
-  const tarball = Buffer.from(await (await fetch(metadata.dist.tarball)).arrayBuffer());
+  const metadataResponse = await fetch(
+    'https://registry.npmjs.org/@deepseek-ai%2fdsh-llm-pi-ai/' + version,
+  );
+  assert.ok(metadataResponse.ok, '官方 npm 元数据下载失败：' + metadataResponse.status);
+  const metadata = await metadataResponse.json();
+  assert.equal(metadata.version, version);
+  const tarballResponse = await fetch(metadata.dist.tarball);
+  assert.ok(tarballResponse.ok, '官方 npm tarball 下载失败：' + tarballResponse.status);
+  const tarball = Buffer.from(await tarballResponse.arrayBuffer());
   assert.equal(createHash('sha1').update(tarball).digest('hex'), metadata.dist.shasum);
+  assert.equal(
+    'sha512-' + createHash('sha512').update(tarball).digest('base64'),
+    metadata.dist.integrity,
+  );
   await writeFile(path.join(target, 'official.json'), JSON.stringify(metadata.dist, null, 2));
   await writeFile(path.join(target, 'official.tgz'), tarball);
   const pristine = path.join(target, 'pristine');
@@ -130,6 +173,32 @@ for (const version of versions) {
     version !== '0.2.2-rc.1',
     'rc.2 至 rc.5 必须保留 thinking 前缀绑定，rc.1 不含该函数',
   );
+  const resolveHost = createRequire(path.join(target, 'package.json'));
+  const { evaluatePluginCompatibility, getDshRuntimeVersion } = await import(
+    pathToFileURL(resolveHost.resolve('@deepseek-ai/dsh-app-boot'))
+  );
+  assert.equal(getDshRuntimeVersion(), version);
+  assert.equal(evaluatePluginCompatibility(manifest), undefined, version + ' 必须通过宿主检查');
+  for (const alpha of ['0.2.3-alpha.1', '0.2.3-alpha.2']) {
+    assert.equal(evaluatePluginCompatibility(manifest, {}, alpha), undefined);
+  }
+  for (const unsupported of [
+    '0.2.1-rc.2',
+    '0.2.1-rc.3',
+    '0.2.1-rc.4',
+    '0.2.1-rc.5',
+    '0.2.1',
+    '0.2.2-rc.6',
+    '0.2.2',
+    '0.2.3-alpha.3',
+    '0.2.3',
+  ]) {
+    assert.equal(
+      evaluatePluginCompatibility(manifest, {}, unsupported)?.exempted,
+      false,
+      unsupported + ' 不受支持，不应通过宿主检查',
+    );
+  }
   const tests = (await readdir(path.join(target, 'test')))
     .filter((file) => file.endsWith('.test.mjs'))
     .map((file) => 'test/' + file);

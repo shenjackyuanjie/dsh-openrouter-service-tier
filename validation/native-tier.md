@@ -1,4 +1,4 @@
-# 当前版本验证状态
+# 验证记录
 
 验证日期：2026-11-14。插件版本：`0.4.6`。目标宿主：`0.2.1-rc.2` 至 `0.2.1-rc.5` 与 `0.2.2-rc.1` 至 `0.2.2-rc.3`。兼容验证只使用 npm 官方发布产物，未混用公开源码树或内部源码变体，未部署、修改运行中 profile 或重启服务；验证通过后按项目既有 GitHub Packages 渠道发布。
 
@@ -108,11 +108,11 @@
 
 官方原始 `lib/index.js` SHA256：`1a3ae58f9b4493e15459cc5000ec80f21b5d3f4a9dea6ffb6bc28e5b8817ae8a`。补丁后及实际安装文件：`c085260ea11146fbf591114da95dec183f0f8879c15b3e71320aaec8f3e7ef75`。
 
-## 旧版兼容隔离矩阵
+## 旧版兼容隔离矩阵（历史）
 
 当前 `0.4.4` 构建在四个官方旧宿主版本上均通过完整 26 项回归，没有运行时兼容修复。原有 peer 支持范围及四份旧补丁保持不变；Cordis 仍包含 `4.0.5`，Schemastery 仍包含 `3.18.5`。
 
-复验命令（在项目根运行，需要 Node.js、pnpm 11、git 和 tar；安装只访问官方 npm registry，测试只访问 loopback）：
+复验命令（先切换到 [v0.4.7](https://github.com/shenjackyuanjie/dsh-openrouter-service-tier/tree/v0.4.7)，再在项目根运行；需要 Node.js、pnpm 11、git 和 tar；安装只访问官方 npm registry，测试只访问 loopback）：
 
 ```powershell
 node scripts/verify-legacy.mjs
@@ -121,7 +121,7 @@ node scripts/verify-legacy.mjs --pi-ai=1.4.0
 node scripts/verify-legacy.mjs 0.2.1-rc.2 --pi-ai=1.4.0
 ```
 
-[复验脚本](../scripts/verify-legacy.mjs)在忽略目录 `.cache/legacy-matrix/<宿主版本>-pi-<SDK版本>/` 建立各自独立的 manifest、workspace、锁文件与 node_modules；复用完整 [测试夹具](../test/fixtures.mjs) 和全部测试文件。使用当前 build 的发布白名单文件，并校验隔离入口与根构建逐字节一致；不替换现用开发依赖。本次没有重新打 tarball，最终统一打包仍由发布代理执行。
+[历史复验脚本](https://github.com/shenjackyuanjie/dsh-openrouter-service-tier/blob/v0.4.7/scripts/verify-legacy.mjs)在忽略目录 `.cache/legacy-matrix/<宿主版本>-pi-<SDK版本>/` 建立各自独立的 manifest、workspace、锁文件与 node_modules；复用完整 [当时的测试夹具](https://github.com/shenjackyuanjie/dsh-openrouter-service-tier/blob/v0.4.7/test/fixtures.mjs) 和全部测试文件。使用当前 build 的发布白名单文件，并校验隔离入口与根构建逐字节一致；不替换现用开发依赖。本次没有重新打 tarball，最终统一打包仍由发布代理执行。
 
 每格都以同版本 commands/credentials/llm/llm-pi-ai/settings/tools 及配套 DSH peers 安装；基础库固定为 Cordis `4.0.5`、loader `1.0.6`、group `1.0.5`、include `1.0.10`、Schemastery `3.18.5`。全部八格 `pnpm peers check` 无冲突。官方原始 tarball 的 SHA1 与 npm shasum 一致，并逐版本执行 `git apply --check --verbose`，再由 pnpm 应用对应版本补丁。
 
@@ -141,7 +141,7 @@ node scripts/verify-legacy.mjs 0.2.1-rc.2 --pi-ai=1.4.0
 | 0.2.1-rc.4 | df3bd2fdd193d6c8a1b415fdc5450ab5db4036c9 |
 | 0.2.1-rc.5 | ba113dcf2ce622b2445be0098fdf50dfee08541b |
 
-三种协议均发送五档位及 null/omit，共每格 18 次假服务请求，没有协议跳过。唯一版本化边界是非 OpenRouter provider 的错误档位配置：rc.2 补丁在配置阶段明确拒绝，rc.3/rc.4/rc.5/0.2.2-rc.1 忽略该字段；[协议回归](../test/protocols.test.mjs)读取实际原生版本，分别断言拒绝且零请求或成功发送且不带 service_tier，并输出 rc.2 诊断，不把错误吞掉或静默跳过。
+三种协议均发送五档位及 null/omit，共每格 18 次假服务请求，没有协议跳过。唯一版本化边界是非 OpenRouter provider 的错误档位配置：rc.2 补丁在配置阶段明确拒绝，rc.3/rc.4/rc.5/0.2.2-rc.1 忽略该字段；[当时的协议回归](https://github.com/shenjackyuanjie/dsh-openrouter-service-tier/blob/v0.4.7/test/protocols.test.mjs)读取实际原生版本，分别断言拒绝且零请求或成功发送且不带 service_tier，并输出 rc.2 诊断，不把错误吞掉或静默跳过。
 
 历史版本取自适配前提交 `b3945e8` 的 `git show b3945e8:package.json` 与 `git show b3945e8:pnpm-lock.yaml`：旧根 devDependency 虽为 pi-ai `0.87.1`，adapter 的锁定依赖实际为嵌套 `1.4.0`，不要把两者混淆。官方四个旧 adapter 均要求 `^1.1.0`；额外强制把 adapter 降到 `0.87.1` 的诊断在导入阶段缺少 `getAllBuiltinModels`，该组合不属于官方范围，不作为兼容承诺。没有为此改动旧补丁。
 
@@ -173,3 +173,32 @@ node scripts/verify-legacy.mjs 0.2.1-rc.2 --pi-ai=1.4.0
 - `npm run test:matrix` 使用本地 0.4.7 矩阵 tarball（npm pack shasum `93090590137531b3df377dcf9de7d7656ad71440`）与五版官方宿主依赖树，逐版本检查 npm shasum、依赖版本、补丁生效及全部离线测试；rc.1 至 rc.5 均 26/26 通过、0 失败、0 跳过。正式发布包远端 shasum 为 `72320428a65ce1eaddd1d9b3e08b38519a9a20b5`，integrity 为 `sha512-22Vz2CTI9dMzyxMLjmkRmlD3G74FULUtqIBU8tImW578vPPtIiRBlsB/FRgJqITbAItgMxo1xWh0B/ivUQhtMA==`。
 
 验证边界：未连接真实 OpenRouter、未发送付费请求、未在用户运行中的 Host 安装或修改配置；协议请求使用 loopback 假服务。
+
+## 未发布：0.2.3-alpha.1 适配候选
+
+插件版本 `0.5.0`。已移除 DSH `0.2.1` 的公开兼容声明、旧补丁和旧版回归入口，保留全部五个 `0.2.2` RC。
+
+官方 [Alpha.1 Release](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.3-alpha.1)。当前 [npm CLI](https://registry.npmjs.org/@deepseek-ai%2fdsh) 的 `alpha` 已指向 `0.2.3-alpha.2`，`latest`、`next` 均为 `0.2.2-rc.5`。所有已发布的 0.2.2 版本中，rc.2 起只有 rc.2、rc.3、rc.4、rc.5，没有正式版。
+
+- 官方 [dsh-llm-pi-ai tarball](https://registry.npmjs.org/@deepseek-ai/dsh-llm-pi-ai/-/dsh-llm-pi-ai-0.2.3-alpha.1.tgz) npm shasum：`2811125c93ab56be1e986d273995596ad1d3b6ba`，SHA-512 也与 npm integrity 一致。原始 `lib/index.js` SHA-256：`bf9ebd17933a7bdf633ff2684d78b2893b872d6440f9250c862810c44d910a0f`；`lib/types/config.d.ts` SHA-256：`b7b3738991addb2146ae82a68ff60baed368fcd3dd12762df56103532257a914`。
+- RC5 补丁不能直接应用：alpha.1 移除了 `recordKeyFor` 的公开导出。alpha.1 补丁针对两个新文件重生成，`git apply --check --verbose` 检查两个文件通过，`node --check` 通过。档位仍从准备快照取得，且在 thinking 前缀绑定后注入；图片适配与原生调用链不改。插件 `src/` 无修改。
+- `npm run check` 使用原来的 rc.5 锁；`npm run test:matrix` 在隔离项目使用实际候选 tarball 和官方宿主依赖，rc.1 至 rc.5 各 26/26、无失败或跳过。矩阵还检查正式 `dsh-app-boot` 兼容性门槛、精确依赖及包内补丁，拒绝旧 `0.2.1` 和尚未验证的版本。
+
+### 官方 alpha.1 上游阻塞
+
+1. 在空 pnpm 项目仅安装 `@deepseek-ai/dsh@0.2.3-alpha.1`（`--ignore-scripts --registry=https://registry.npmjs.org`），将 `DSH_HOME` 明确设为隔离的新路径，执行 `node node_modules/@deepseek-ai/dsh/lib/bin.js --version`。退出码为 1，隔离 home 未创建；`dsh-app-boot/lib/index.js` 导入 `EntryValidationError` 时失败，安装到 CLI 与 app-boot 的 `@deepseek-ai/cordis-plugin-loader@1.1.0` 没有该导出。公共 npm 没有其他满足 `~1.1.0` 的发布。
+2. 绕过 CLI、直接用空 Cordis Context 加载官方 `dsh-llm` 也失败：官方 `dsh-typert-protocol` 使用 `ctx[Context.root]`，公开 `@deepseek-ai/cordis@4.1.0` 仅提供实例的 `ctx.root`，`Context.root` 是 `undefined`。在插件加载前抛 `cannot get property "undefined" without inject`。
+
+`npm run test:matrix -- 0.2.3-alpha.1` 可用候选 tarball 复验：真实 alpha 包的对应补丁、固定依赖和 peer 检查通过；官方 app-boot 导入时出现上述第一处错误。仅用于定位，在忽略缓存中的 Node preload 为 Cordis 临时添加旧 `Context.root` 静态属性别名后，独立 alpha.1 Loader、LLM、Settings 和真实原生 SDK 配合 loopback 假服务的 26/26 用例全部通过。该垫片没有被纳入插件，不修复官方 CLI，也不能作为正式发版验收。
+
+alpha.1 补丁只是插件级适配，不把 alpha.1 列为通过验收的官方宿主。
+
+## 0.2.3-alpha.2 适配
+
+- 官方 [dsh-llm-pi-ai tarball](https://registry.npmjs.org/@deepseek-ai/dsh-llm-pi-ai/-/dsh-llm-pi-ai-0.2.3-alpha.2.tgz) npm shasum：`81f74219712ca061aa3bcc56b667260ce836ed25`，同时校验 SHA-512。原始 `lib/index.js` 和 `lib/types/config.d.ts` 与 alpha.1 逐字节相同；补丁逻辑不改，使用 alpha.2 自己的精确版本键与文件。
+- 官方 `@deepseek-ai/cordis@4.2.0-alpha.1` 提供 Typert 要求的 `Context.root` symbol；官方 `cordis-plugin-loader@1.2.0-alpha.1` 提供 boot 要求的四个导出。原生 LLM 在未修改的官方依赖上进入 `ACTIVE`；`listProviders()` 正常。
+- 全新隔离安装的官方 CLI 使用官方 Node `24.22.3` 执行 `--version`，原样输出 `0.2.3-alpha.2`，退出 0；npm 官方 CLI 要求 Node `^24.22.3 || >=26.13.1`。
+- `npm run test:matrix -- 0.2.3-alpha.2` 使用实际插件 tarball、新版 Cordis、Loader/Group/Include `1.2.0-alpha.1`、Schemastery `3.20.0-alpha.1` 与 pi-ai `1.3.0`，通过原包双哈希检查、精确补丁检查、peer 检查和官方 app-boot 兼容性检查。26/26 离线用例通过，0 失败、0 跳过；没有兼容垫片。测试覆盖插件加载、设置 revision、命令与 Agent 工具贡献、三种协议、thinking/replay、取消和重试。
+- `npm run test:matrix` 覆盖 RC1–RC5 和 alpha.2，检查归档恰好包含五份 RC 补丁和两份精确 Alpha 补丁，并拒绝 `0.2.1` 和未验证的后续版本。
+
+验证边界：没有安装到用户正在使用的 profile，未连接真实 OpenRouter；SDK 请求使用 loopback 假服务。

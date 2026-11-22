@@ -40,7 +40,7 @@ test('真实 Loader + LLM + PiAiAdapter：flex 与 high thinking、文本和 usa
   assert.ok(chunks.some((chunk) => chunk.type === 'text-delta' && chunk.text === '离线回答'));
   assert.ok(chunks.some((chunk) => chunk.type === 'usage' && chunk.usage.totalTokens === 20));
   assert.ok(finish(chunks).replayState);
-  // 凭据解析次数属于宿主实现细节（0.2.1-rc.2 起每次请求解析多次）；这里只要求指向原生环境变量引用。
+  // 凭据解析次数属于宿主实现细节；这里只要求指向原生环境变量引用。
   assert.ok(references.length >= 1);
   assert.ok(references.every((reference) => reference === 'OPENROUTER_API_KEY'));
 });

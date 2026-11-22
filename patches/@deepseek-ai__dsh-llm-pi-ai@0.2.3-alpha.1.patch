@@ -1,8 +1,8 @@
 diff --git a/lib/index.js b/lib/index.js
-index 4b1e5ad..1a9585b 100644
+index 04ed724..025ff6d 100644
 --- a/lib/index.js
 +++ b/lib/index.js
-@@ -1046,7 +1046,32 @@ const modelProfile = z.object({
+@@ -1052,7 +1052,32 @@ const modelProfile = z.object({
  });
  /** A {@link modelProfile} whose id lives in the `modelOverrides` dict key. */
  const modelOverride = z.object(modelFields);
@@ -35,7 +35,7 @@ index 4b1e5ad..1a9585b 100644
  	apiKeyEnv: z.string().role("credential-ref"),
  	displayName: z.string(),
  	api: z.union(supportedProtocols()),
-@@ -1944,6 +1969,8 @@ var PiAiAdapter = class extends LlmAdapter {
+@@ -2109,6 +2134,8 @@ var PiAiAdapter = class extends LlmAdapter {
  			if (options.stop !== void 0) throw new LlmError("llm-pi-ai does not support GenerateOptions.stop", "UNSUPPORTED_OPTION");
  			const profile = this.profileOf(snapshot, options.provider);
  			const model = this.modelOf(snapshot, options.provider, options.model);
@@ -44,8 +44,8 @@ index 4b1e5ad..1a9585b 100644
  			const updates = conversationUpdates(model);
  			const tools = options.tools ?? [];
  			const request = model.api === "anthropic-messages" && updates.toolUpdate === "in-history" && tools.every((tool) => tool.deferLoading === true) && options.messages.some((message) => message.role === "developer" && message.content.some((block) => block.type === "tool-addition" || block.type === "tool-removal")) ? {
-@@ -1982,6 +2009,10 @@ var PiAiAdapter = class extends LlmAdapter {
- 				}, onReplayDegrade);
+@@ -2155,6 +2182,10 @@ var PiAiAdapter = class extends LlmAdapter {
+ 				});
  				const iterator = toStreamChunks(snapshot.models.streamSimple(model, context, {
  					...profileOptions(profile, reasoning, apiKey),
 +					...serviceTier === void 0 ? {} : { onPayload: (payload) => {
@@ -55,17 +55,17 @@ index 4b1e5ad..1a9585b 100644
  					...options.temperature === void 0 ? {} : { temperature: options.temperature },
  					...options.maxTokens === void 0 ? {} : { maxTokens: options.maxTokens },
  					...options.sessionId === void 0 ? {} : { sessionId: String(options.sessionId) },
-@@ -2965,4 +2996,4 @@ function apply(ctx, config) {
+@@ -3188,4 +3219,4 @@ function apply(ctx, config) {
  	});
  }
  //#endregion
--export { Config, PiAiAdapter, apply, inject, name, recordKeyFor, supportedProtocols };
-+export { Config, OPENROUTER_SERVICE_TIERS, PiAiAdapter, apply, inject, name, recordKeyFor, supportedProtocols };
+-export { Config, PiAiAdapter, apply, inject, name, supportedProtocols };
++export { Config, OPENROUTER_SERVICE_TIERS, PiAiAdapter, apply, inject, name, supportedProtocols };
 diff --git a/lib/types/config.d.ts b/lib/types/config.d.ts
-index f45d7d9..4dd1534 100644
+index 597e860..86b6450 100644
 --- a/lib/types/config.d.ts
 +++ b/lib/types/config.d.ts
-@@ -50,8 +50,20 @@ export declare const DEFAULT_MAX_TOKENS = 32768;
+@@ -62,8 +62,20 @@ export declare const DEFAULT_MAX_TOKENS = 128000;
   */
  export declare const DEFAULT_INPUT: readonly PiAiModality[];
  export type { PiAiCompatProfile, PiAiModality, PiAiModelOverride, PiAiModelProfile, PiAiReasoningEfforts, PiAiThinkingFormat, } from './catalog.ts';

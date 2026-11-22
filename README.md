@@ -11,15 +11,15 @@
 ```powershell
 npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
 npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
-dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.4.7 --ignore-scripts
+dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.5.0 --ignore-scripts
 ```
 
 Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从原 npm registry 获取，认证方法参见 [GitHub npm registry 说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。首次安装后需在插件管理器启用该 bundle；安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不会默认把请求改为 flex。更换宿主或插件代码后重启 Host，之后的档位修改通过原生 volatile 热更新生效。
 
-本地 tarball 安装不需要 GitHub 认证（先 `npm run build` 产出 `lib/`，再打包得到 tarball）：
+安装本地 tarball 不需要 GitHub 认证：
 
 ```powershell
-dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.4.7.tgz --ignore-scripts
+dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.5.0.tgz --ignore-scripts
 ```
 
 ## 展示
@@ -30,7 +30,9 @@ dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier
 
 ## 宿主要求
 
-- 支持宿主 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.1-rc.4`、`0.2.1-rc.5`、`0.2.2-rc.1`、`0.2.2-rc.2`、`0.2.2-rc.3`、`0.2.2-rc.4` 与 `0.2.2-rc.5`，每个版本都需要匹配版本的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。`0.2.1-rc.5` 的 `dsh-llm-pi-ai` 构建产物与 `rc.4` 逐字节相同，两者补丁内容一致，只是版本键不同；`0.2.2-rc.3`、`0.2.2-rc.4` 与 `0.2.2-rc.5` 的产物逐字节相同，同样只是版本键不同。未打补丁时命令与工具会明确拒绝，不会假报配置成功。
+- 支持宿主 `0.2.2-rc.1`、`0.2.2-rc.2`、`0.2.2-rc.3`、`0.2.2-rc.4` 与 `0.2.2-rc.5`。每个版本都需要匹配的 `llm-pi-ai` 档位补丁；补丁随包发布，不要混用。`0.2.2-rc.3`、`0.2.2-rc.4` 与 `0.2.2-rc.5` 的产物逐字节相同，只是补丁版本键不同。未打补丁时，命令与工具会拒绝修改档位。
+- 插件 `0.5.0` 移除了 DSH `0.2.1` 支持。仍使用该系列的用户可继续使用 [插件 `0.4.7`](https://github.com/shenjackyuanjie/dsh-openrouter-service-tier/releases/tag/v0.4.7) 的匹配补丁。
+- `0.5.0` 另支持 DSH `0.2.3-alpha.2`，需要对应的新 Cordis 和精确版本档位补丁。官方 alpha.2 CLI 要求 Node `^24.22.3 || >=26.13.1`。`0.2.3-alpha.1` 仍附有插件级补丁，但官方 npm CLI 在装载 profile 前因 Cordis ABI 不匹配而退出，不建议使用该宿主版本。见[验证记录](./validation/native-tier.md#023-alpha2-适配)。
 - 补丁登记在实际解析 `@deepseek-ai/dsh-llm-pi-ai` 的 pnpm 项目中，运行 `pnpm install` 并重启 Host：
 
 ```yaml
@@ -38,7 +40,7 @@ patchedDependencies:
   '@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.5': /absolute/path/to/patches/@deepseek-ai__dsh-llm-pi-ai@0.2.2-rc.5.patch
 ```
 
-宿主是 `0.2.1-rc.2` / `0.2.1-rc.3` / `0.2.1-rc.4` / `0.2.1-rc.5` / `0.2.2-rc.1` / `0.2.2-rc.2` / `0.2.2-rc.3` / `0.2.2-rc.4` / `0.2.2-rc.5` 时，键与文件都换成对应版本；`0.2.2-rc.1` 继续使用 `@0.2.2-rc.1.patch`，`0.2.2-rc.2`、`0.2.2-rc.3`、`0.2.2-rc.4` 与 `0.2.2-rc.5` 各用同名补丁文件。只登记宿主实际安装的版本（pnpm 会把没有对应依赖的补丁登记报错），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
+对每个受支持的宿主，键与补丁文件名都使用对应的精确版本。只登记宿主实际安装的版本（pnpm 会拒绝没有对应依赖的补丁登记），不要手改 `node_modules`。补丁内容与移植说明见 [patches/README.md](./patches/README.md)。
 
 ## 使用
 
@@ -86,6 +88,10 @@ patchedDependencies:
 
 ## 升级
 
+### 插件 0.4.7 → 0.5.0
+
+DSH `0.2.1` 用户请继续使用 `0.4.7`。DSH `0.2.2-rc.1` 至 `0.2.2-rc.5` 可继续使用原来的对应版本补丁。升级宿主到 `0.2.3-alpha.2` 时，先确认 Node 符合官方 CLI 要求，再把宿主的 `patchedDependencies` 键和补丁文件一起换成 `0.2.3-alpha.2`；运行 `pnpm install` 后重启 Host。
+
 ### 插件 0.4.6 → 0.4.7
 
 1. 安装新版本 tgz，或按上面的命令安装 `@0.4.7`。
@@ -108,7 +114,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 npm run check
 ```
 
-`npm run check` 覆盖 rc.5；`npm run test:matrix` 用官方 tarball 在隔离目录分别跑 `0.2.2-rc.1`、`0.2.2-rc.2`、`0.2.2-rc.3`、`0.2.2-rc.4` 与 `0.2.2-rc.5`。`npm run check` 依次执行 `format:check`（Prettier 格式检查）、`typecheck`（类型检查）与离线测试（构建后 `node --test`，覆盖 Loader / LLM / Settings 回归与 zh/en locale、图标等显示资源）。改写格式运行 `npm run format`。真实宿主与请求的验收记录见 [validation/native-tier.md](./validation/native-tier.md)。
+`npm run check` 覆盖 rc.5；`npm run test:matrix` 用官方 tarball 在隔离目录分别跑 `0.2.2-rc.1`、`0.2.2-rc.2`、`0.2.2-rc.3`、`0.2.2-rc.4`、`0.2.2-rc.5` 与 `0.2.3-alpha.2`；`npm run test:matrix -- 0.2.3-alpha.1` 单独检查 alpha.1（目前会复现上游启动失败）。`npm run check` 依次执行 `format:check`（Prettier 格式检查）、`typecheck`（类型检查）与离线测试（构建后 `node --test`，覆盖 Loader / LLM / Settings 回归与 zh/en locale、图标等显示资源）。改写格式运行 `npm run format`。真实宿主与请求的验收记录见 [validation/native-tier.md](./validation/native-tier.md)。
 
 ## 许可证
 

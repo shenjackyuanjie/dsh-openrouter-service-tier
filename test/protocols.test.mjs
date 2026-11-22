@@ -1,10 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-
-const nativeVersion = JSON.parse(
-  await readFile(new URL(import.meta.resolve('@deepseek-ai/dsh-llm-pi-ai/package.json')), 'utf8'),
-).version;
 import { setupNative, call, collect, finish, MODEL, harness, fakeOpenRouter } from './fixtures.mjs';
 
 // 用真实 npm adapter 与 pi-ai 发送请求；上游固定 503，验证 body 而不依赖响应协议。
@@ -47,7 +42,7 @@ for (const [api, path] of [
   });
 }
 
-test('其他 provider 的档位按原生版本拒绝或忽略，永不注入 service_tier', async (t) => {
+test('其他 provider 忽略档位，不注入 service_tier', async (t) => {
   const fake = await fakeOpenRouter();
   t.after(() => fake.close());
   const host = await harness();
@@ -71,15 +66,6 @@ test('其他 provider 的档位按原生版本拒绝或忽略，永不注入 ser
         },
       },
     ]);
-  if (nativeVersion === '0.2.1-rc.2') {
-    t.diagnostic('旧版原生补丁在配置阶段明确拒绝非 openrouter 档位：' + nativeVersion);
-    await assert.rejects(
-      activate,
-      /serviceTier and modelServiceTiers require the native openrouter route/,
-    );
-    assert.equal(fake.requests.length, 0);
-    return;
-  }
   await activate();
   await collect(host.root.llm.stream(call({ provider: 'other' })));
   assert.equal(fake.requests.length, 1);
