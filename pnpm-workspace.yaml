@@ -1,2 +1,5 @@
 patchedDependencies:
   '@deepseek-ai/dsh-llm-pi-ai@0.2.2-rc.5': patches/@deepseek-ai__dsh-llm-pi-ai@0.2.2-rc.5.patch
+allowBuilds:
+  '@google/genai': true
+  protobufjs: true
