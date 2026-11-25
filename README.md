@@ -29,7 +29,7 @@ allowBuilds:
   '@shenjackyuanjie/dsh-openrouter-service-tier@https://codeload.github.com/shenjackyuanjie/dsh-openrouter-service-tier/tar.gz/<commit>: true
 ```
 
-`<commit>` 是本次解析到的提交，改分支或改版本后会变；复制 pnpm 实际打印的键，不要手写。只写包名不会生效。
+`<commit>` 是本次解析到的提交，改分支或改版本后会变；复制 pnpm 实际打印的键，不要手写，只写包名不会生效。pnpm 输出会把这一行折成几行显示，写进 YAML 时用单行。
 
 2. 把该键写进 profile 的 `pnpm-workspace.yaml`（与 `packages`、`nodeLinker` 同级），再重跑同一条安装命令。构建会下载 `typescript`、`@types/node`、`prettier` 等开发依赖，首次约二十秒，网络慢时更久。
 
