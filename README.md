@@ -12,6 +12,29 @@
 
 ## 安装
 
+### 从 GitHub 源码安装
+
+仓库不提交 `lib/` 构建产物，从源码安装会在本机执行构建。pnpm 默认拦截 git 包执行构建脚本，因此需要两步：
+
+1. 先执行安装，让它打印精确的 `allowBuilds` 键：
+
+```powershell
+dsh plugin --profile web add github:shenjackyuanjie/dsh-openrouter-service-tier#main
+```
+
+这次会以 `ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED` 结束，并在 `help:` 中给出形如下面的键：
+
+```yaml
+allowBuilds:
+  '@shenjackyuanjie/dsh-openrouter-service-tier@https://codeload.github.com/shenjackyuanjie/dsh-openrouter-service-tier/tar.gz/<commit>: true
+```
+
+`<commit>` 是本次解析到的提交，改分支或改版本后会变；复制 pnpm 实际打印的键，不要手写。只写包名不会生效。
+
+2. 把该键写进 profile 的 `pnpm-workspace.yaml`（与 `packages`、`nodeLinker` 同级），再重跑同一条安装命令。构建会下载 `typescript`、`@types/node`、`prettier` 等开发依赖，首次约二十秒，网络慢时更久。
+
+`#main` 跟随主分支。`v0.5.0` 标签早于本次构建支持，固定到该标签会在构建阶段失败；需要固定版本时改用下面的 Release 附件或 GitHub Packages。安装完成后仍需按[宿主要求](#宿主要求)登记补丁。
+
 ### 从 GitHub Release 附件安装
 
 Release 附件是发版时构建好的完整包，内含 `lib/`、`patches/`、`cordis.patch.yml` 与 locale 资源。安装不需要 GitHub 认证，也不会触发构建或要求批准构建脚本：
@@ -21,8 +44,6 @@ dsh plugin --profile web add https://github.com/shenjackyuanjie/dsh-openrouter-s
 ```
 
 把 `web` 换成实际 profile。安装后仍需按[宿主要求](#宿主要求)为当前宿主版本登记 `patchedDependencies` 补丁；未打补丁时命令与工具会拒绝修改档位。
-
-不要用 `github:` 源码方式安装：仓库的 `lib/` 是构建产物、不入库，pnpm 会要求批准构建（`allowBuilds`）才能编译出运行文件，该路径当前不可用。
 
 ### 从 GitHub Packages 安装
 
