@@ -33,14 +33,14 @@ allowBuilds:
 
 2. 把该键写进 profile 的 `pnpm-workspace.yaml`（与 `packages`、`nodeLinker` 同级），再重跑同一条安装命令。构建会下载 `typescript`、`@types/node`、`prettier` 等开发依赖，首次约二十秒，网络慢时更久。
 
-`#main` 跟随主分支。`v0.5.0` 标签早于本次构建支持，固定到该标签会在构建阶段失败；需要固定版本时改用下面的 Release 附件或 GitHub Packages。安装完成后仍需按[宿主要求](#宿主要求)登记补丁。
+`#main` 跟随主分支。`v0.5.1` 及之后的标签包含构建支持；`v0.5.0` 及更早标签不含，固定到这些标签会在构建阶段失败。需要固定版本时改用下面的 Release 附件或 GitHub Packages。安装完成后仍需按[宿主要求](#宿主要求)登记补丁。
 
 ### 从 GitHub Release 附件安装
 
 Release 附件是发版时构建好的完整包，内含 `lib/`、`patches/`、`cordis.patch.yml` 与 locale 资源。安装不需要 GitHub 认证，也不会触发构建或要求批准构建脚本：
 
 ```powershell
-dsh plugin --profile web add https://github.com/shenjackyuanjie/dsh-openrouter-service-tier/releases/download/v0.5.0/shenjackyuanjie-dsh-openrouter-service-tier-0.5.0.tgz --ignore-scripts
+dsh plugin --profile web add https://github.com/shenjackyuanjie/dsh-openrouter-service-tier/releases/download/v0.5.1/shenjackyuanjie-dsh-openrouter-service-tier-0.5.1.tgz --ignore-scripts
 ```
 
 把 `web` 换成实际 profile。安装后仍需按[宿主要求](#宿主要求)为当前宿主版本登记 `patchedDependencies` 补丁；未打补丁时命令与工具会拒绝修改档位。
@@ -52,7 +52,7 @@ dsh plugin --profile web add https://github.com/shenjackyuanjie/dsh-openrouter-s
 ```powershell
 npm config set '@shenjackyuanjie:registry' 'https://npm.pkg.github.com' --location=user
 npm login --scope=@shenjackyuanjie --auth-type=legacy --registry=https://npm.pkg.github.com
-dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.5.0 --ignore-scripts
+dsh plugin --profile web add @shenjackyuanjie/dsh-openrouter-service-tier@0.5.1 --ignore-scripts
 ```
 
 Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从原 npm registry 获取，认证方法参见 [GitHub npm registry 说明](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry)。首次安装后需在插件管理器启用该 bundle；安装 overlay 只插入配置为空的控制插件，不新增/禁用 provider，也不会默认把请求改为 flex。更换宿主或插件代码后重启 Host，之后的档位修改通过原生 volatile 热更新生效。
@@ -62,7 +62,7 @@ Username 填 GitHub 用户名，Password 填 PAT；其他 scope 的依赖仍从�
 安装本地 tarball 不需要 GitHub 认证：
 
 ```powershell
-dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.5.0.tgz --ignore-scripts
+dsh plugin --profile web add D:\path\shenjackyuanjie-dsh-openrouter-service-tier-0.5.1.tgz --ignore-scripts
 ```
 
 ## 宿主要求
@@ -124,6 +124,11 @@ patchedDependencies:
 例如，先执行 `/openrouter-tier flex`，再执行 `/openrouter-tier openai/gpt-6-luna priority`，就会让该模型使用 priority，其他模型使用 flex。需要让某个模型完全不带档位时使用模型 `omit`；要恢复全局底层继承时使用 `/openrouter-tier reset`。保存后无需重启，只影响新准备的请求。
 
 ## 升级
+
+### 插件 0.5.0 → 0.5.1
+
+1. 安装新版本（源码、Release 附件、GitHub Packages 或本地 tarball 均可）。宿主兼容范围与补丁没有变化，已按版本登记过 `patchedDependencies` 的不需要改动。
+2. 在插件管理器中停用再启用该 bundle，让命令与设置重新加载。
 
 ### 插件 0.4.7 → 0.5.0
 

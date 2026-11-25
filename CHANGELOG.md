@@ -1,5 +1,11 @@
 # 变更记录
 
+## 0.5.1 — 2026-11-25
+
+- 支持从 GitHub 源码安装：pnpm 从 git 安装时执行 `prepare` 构建；首次安装需把 pnpm 打印的精确 `allowBuilds` 键写进 profile 的 `pnpm-workspace.yaml` 后重跑同一条命令。`v0.5.0` 标签不含该构建支持，固定到该标签会在构建阶段失败。
+- 新增 GitHub Release 附件安装方式：发版归档已含 `lib/`，不需要 GitHub 认证，也不会构建或要求批准构建脚本。
+- README 安装方式顺序改为 源码 → Release 附件 → GitHub Packages → 本地 tarball，并补充构建放行步骤。
+
 ## 0.5.0 — 2026-11-22
 
 - 适配 DSH `0.2.3-alpha.2` 的 Cordis、Loader 和原生 `dsh-llm-pi-ai`。为 alpha.1 和 alpha.2 提供独立的精确版本补丁，不匹配后续 Alpha 或尚未发布的 0.2.2 版本。
